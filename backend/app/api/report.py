@@ -11,6 +11,7 @@ from flask import request, jsonify, send_file
 from . import report_bp
 from ..config import Config
 from ..services.report_agent import ReportAgent, ReportManager, ReportStatus
+from ..services.graph_provider import get_graph_tools
 from ..services.simulation_manager import SimulationManager
 from ..models.project import ProjectManager
 from ..models.task import TaskManager, TaskStatus
@@ -93,6 +94,8 @@ def generate_report():
             }), 404
         
         graph_id = state.graph_id or project.graph_id
+        if not graph_id and Config.GRAPH_PROVIDER == 'local_simple':
+            graph_id = f"local_simple:{simulation_id}"
         if not graph_id:
             return jsonify({
                 "success": False,
@@ -533,6 +536,8 @@ def chat_with_report_agent():
             }), 404
         
         graph_id = state.graph_id or project.graph_id
+        if not graph_id and Config.GRAPH_PROVIDER == 'local_simple':
+            graph_id = f"local_simple:{simulation_id}"
         if not graph_id:
             return jsonify({
                 "success": False,
@@ -957,9 +962,9 @@ def search_graph_tool():
                 "error": t('api.requireGraphIdAndQuery')
             }), 400
         
-        from ..services.zep_tools import ZepToolsService
+        from ..services.graph_provider import get_graph_tools
         
-        tools = ZepToolsService()
+        tools = get_graph_tools()
         result = tools.search_graph(
             graph_id=graph_id,
             query=query,
@@ -1001,9 +1006,9 @@ def get_graph_statistics_tool():
                 "error": t('api.requireGraphId')
             }), 400
         
-        from ..services.zep_tools import ZepToolsService
+        from ..services.graph_provider import get_graph_tools
         
-        tools = ZepToolsService()
+        tools = get_graph_tools()
         result = tools.get_graph_statistics(graph_id)
         
         return jsonify({
