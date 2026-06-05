@@ -16,7 +16,8 @@ services:
       GRAPH_PROVIDER: ${GRAPH_PROVIDER:-local_simple}
       LOCAL_GRAPH_STORAGE_DIR: ${LOCAL_GRAPH_STORAGE_DIR:-/app/backend/uploads/local_graphs}
       GRAPH_MEMORY_BASE_URL: ${GRAPH_MEMORY_BASE_URL:-http://graph-memory:8000}
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
+      GRAPHITI_BASE_URL: ${GRAPHITI_BASE_URL:-http://graph-memory:8000}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-}
       VITE_PROXY_TARGET: ${VITE_PROXY_TARGET:-http://localhost:5001}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-}
       EMBEDDING_MODEL_NAME: ${EMBEDDING_MODEL_NAME:-}
@@ -32,17 +33,21 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Future Graphiti/Graphifi runtime profile. The app currently boots with
-  # GRAPH_PROVIDER=local_simple by default; switch env/provider when the adapter
-  # is wired to this service.
+  # Graphiti/Graphifi runtime profile. The app boots with GRAPH_PROVIDER=local_simple
+  # by default; set GRAPH_PROVIDER=graphiti to mirror episodes/searches through it.
   graph-memory:
-    image: zepai/graphiti:latest
+    build:
+      context: ./services/graphiti-patched
+    image: mirofish-localized-graphiti:local
     profiles: ["graphiti"]
     environment:
       OPENAI_API_KEY: ${GRAPH_MEMORY_OPENAI_API_KEY:-dummy}
       OPENAI_BASE_URL: ${GRAPH_MEMORY_OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
       MODEL_NAME: ${GRAPH_MEMORY_MODEL_NAME:-gpt-4o-mini}
-      EMBEDDING_MODEL_NAME: ${GRAPH_MEMORY_EMBEDDING_MODEL_NAME:-nomic-embed-text}
+      EMBEDDING_MODEL_NAME: ${GRAPH_MEMORY_EMBEDDING_MODEL_NAME:-jina-embeddings-v5-small}
+      EMBEDDING_BASE_URL: ${GRAPH_MEMORY_EMBEDDING_BASE_URL:-http://host.docker.internal:8089/v1}
+      EMBEDDING_API_KEY: ${GRAPH_MEMORY_EMBEDDING_API_KEY:-local-no-auth}
+      EMBEDDING_DIM: ${GRAPH_MEMORY_EMBEDDING_DIM:-1024}
       NEO4J_URI: bolt://neo4j:7687
       NEO4J_USER: neo4j
       NEO4J_PASSWORD: ${NEO4J_PASSWORD:-mirofish_local_password}

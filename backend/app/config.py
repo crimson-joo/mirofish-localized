@@ -37,6 +37,7 @@ class Config:
     # local_simple: ZEP-free JSON/JSONL bootstrap backend for local Docker Compose
     GRAPH_PROVIDER = os.environ.get('GRAPH_PROVIDER', 'zep').lower()
     GRAPH_MEMORY_BASE_URL = os.environ.get('GRAPH_MEMORY_BASE_URL')
+    GRAPHITI_BASE_URL = os.environ.get('GRAPHITI_BASE_URL') or GRAPH_MEMORY_BASE_URL
     LOCAL_GRAPH_STORAGE_DIR = os.environ.get(
         'LOCAL_GRAPH_STORAGE_DIR',
         os.path.join(os.path.dirname(__file__), '../uploads/local_graphs')
