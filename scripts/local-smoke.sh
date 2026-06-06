@@ -6,6 +6,7 @@ BASE_BACKEND="${BASE_BACKEND:-http://127.0.0.1:5001}"
 BASE_FRONTEND="${BASE_FRONTEND:-http://127.0.0.1:3000}"
 BASE_GRAPHITI="${BASE_GRAPHITI:-http://127.0.0.1:8000}"
 RUN_MINI_BUILD="${RUN_MINI_BUILD:-0}"
+RUN_GRAPHITI_NATIVE_SMOKE="${RUN_GRAPHITI_NATIVE_SMOKE:-1}"
 
 pass() { printf 'PASS %s\n' "$1"; }
 fail() { printf 'FAIL %s\n' "$1"; exit 1; }
@@ -81,6 +82,12 @@ if sims:
 else:
     print('PASS run_status skipped no simulations')
 PY
+
+if [[ "$RUN_GRAPHITI_NATIVE_SMOKE" == "1" ]]; then
+  python3 scripts/graphiti-native-smoke.py "$BASE_GRAPHITI"
+else
+  pass "graphiti_native_smoke skipped RUN_GRAPHITI_NATIVE_SMOKE=0"
+fi
 
 if [[ "$RUN_MINI_BUILD" == "1" ]]; then
   python3 - "$BASE_BACKEND" <<'PY'

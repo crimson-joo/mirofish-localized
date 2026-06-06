@@ -244,6 +244,40 @@ Native extraction repair: still next milestone
 
 This phase does not claim to solve Graphiti's strict structured-output failures. It makes those failures visible and test-covered so the next repair/model-endpoint work can be validated without confusing product-flow fallback with true native Graphiti success.
 
+## Graphiti native repair progress
+
+After Local Demo MVP freeze, a conservative native repair adapter was added to the patched Graphiti `/messages` router.
+
+What changed:
+
+- If `graphiti.add_episode(...)` succeeds, the route reports `native=N`.
+- If strict structured-output extraction fails, the route now creates Graphiti/Neo4j-native repair nodes and a searchable `NATIVE_REPAIR_FACT` edge, then reports `repaired=N`.
+- `scripts/graphiti-native-smoke.py` verifies this path without the MiroFish compatibility cache:
+  - `POST /messages`
+  - `POST /search`
+  - assert returned facts contain the expected MiroFish/Alice/Bob content
+- `scripts/local-smoke.sh` runs this native smoke by default via `RUN_GRAPHITI_NATIVE_SMOKE=1`.
+
+Verified evidence:
+
+```text
+PASS messages {'message': 'Messages processed synchronously; native=0, repaired=1', 'success': True}
+PASS native_search facts=1
+Native repair fact (mirofish native smoke): Alice recommends Bob's MiroFish Graphiti native repair adapter for ZEP-free local runtime validation.
+```
+
+Provider-level real Graphiti smoke also returned:
+
+```text
+native_ingest_state: pass
+native_search_state: pass
+native_graph_memory_state: pass
+```
+
+Important limitation:
+
+This is not yet full LLM-driven Graphiti entity/edge extraction. It is a deterministic repair adapter that guarantees Graphiti-native searchable facts when the selected local LLM endpoint fails Graphiti's strict schemas. Full structured-output model compatibility remains a later hardening target.
+
 ## Local Demo MVP completion scope
 
 The 1차 완성본 target is now defined as **Local Demo MVP**, not full native Graphiti replacement.

@@ -58,6 +58,19 @@ PASS report_list 200
 PASS graph_data_status ...
 ```
 
+기본 smoke는 Graphiti native/repaired fact smoke도 실행합니다. 이 검증은 MiroFish compatibility cache를 우회해서 Graphiti service 자체 `/messages` → `/search`가 searchable fact를 만들 수 있는지 확인합니다.
+
+```text
+PASS messages {'message': 'Messages processed synchronously; native=0, repaired=1', 'success': True}
+PASS native_search facts=1 ...
+```
+
+native smoke를 건너뛰려면:
+
+```bash
+RUN_GRAPHITI_NATIVE_SMOKE=0 ./scripts/local-smoke.sh
+```
+
 선택적으로 mini graph build smoke를 붙일 수 있지만, LLM token/시간을 쓰므로 기본값은 skip입니다.
 
 ```bash
@@ -92,6 +105,10 @@ RUN_MINI_BUILD=1 ./scripts/local-smoke.sh
 2. MiroFish compatibility cache
    - 기존 frontend/backend가 기대하는 nodes/edges/search 형태 유지
    - native Graphiti extraction 실패 시에도 제품 흐름 유지
+
+3. Native repair adapter
+   - Graphiti strict structured-output extraction이 실패하면 patched `/messages` router가 conservative fact edge를 Graphiti/Neo4j에 직접 저장
+   - 이 경로는 full LLM entity extraction은 아니지만, compatibility cache를 우회하는 Graphiti-native searchable fact를 보장
 ```
 
 따라서 보고/판정은 항상 분리합니다.
@@ -106,8 +123,9 @@ Fallback cache: ENABLED
 
 ## Known limitations
 
-- Graphiti native `/messages` extraction은 local LLM endpoint의 strict structured-output 호환성에 따라 실패할 수 있습니다.
-- 이 경우 Local Demo MVP는 compatibility cache로 Step1~Step5를 계속 통과하지만, 이를 “순수 Graphiti native success”로 보지 않습니다.
+- Graphiti native `/messages`의 full LLM entity extraction은 local LLM endpoint의 strict structured-output 호환성에 따라 실패할 수 있습니다.
+- 이 경우 patched native repair adapter가 Graphiti/Neo4j에 conservative searchable fact를 직접 저장합니다. 따라서 Graphiti-native `/search` smoke는 통과할 수 있지만, 이것을 “완전한 LLM 기반 entity/edge extraction”으로 보지는 않습니다.
+- Local Demo MVP는 compatibility cache로 Step1~Step5 제품 흐름도 계속 통과합니다.
 - public tunnel/cloud demo, multi-user production security, million-agent production scale은 1차 완성본 범위가 아닙니다.
 - Graphiti native extraction 완전 안정화는 1.5차/2차 milestone입니다.
 
