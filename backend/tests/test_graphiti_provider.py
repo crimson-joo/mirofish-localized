@@ -87,6 +87,46 @@ class GraphitiProviderTest(unittest.TestCase):
         self.assertGreaterEqual(result.total_count, 1)
         self.assertIn("Alice influences Bob", "\n".join(result.facts))
 
+        graph_data = get_graph_builder().get_graph_data(graph_id)
+        self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "pass")
+        self.assertEqual(graph_data["graphiti_status"]["native_search_state"], "pass")
+        self.assertTrue(graph_data["graphiti_status"]["fallback_cache_enabled"])
+
+    def test_graphiti_provider_records_fallback_when_native_messages_fail(self):
+        from app.services.graph_provider import get_graph_builder, get_graph_tools
+
+        original_do_post = _GraphitiStub.do_POST
+
+        def failing_do_post(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode() or "{}")
+            type(self).calls.append(("POST", self.path, payload))
+            if self.path == "/messages":
+                self._send(500, {"error": "structured output schema mismatch"})
+            elif self.path == "/search":
+                self._send(200, {"facts": []})
+            else:
+                self._send(202, {"success": True})
+
+        _GraphitiStub.do_POST = failing_do_post
+        try:
+            builder = get_graph_builder()
+            graph_id = builder.create_graph("graphiti fallback smoke")
+            builder.set_ontology(graph_id, {"entity_types": [{"name": "Person", "description": "person"}], "edge_types": []})
+            builder.add_text_batches(graph_id, ["Alice influences Bob even when native extraction fails."])
+
+            result = get_graph_tools().quick_search(graph_id, "Alice", limit=5)
+            self.assertGreaterEqual(result.total_count, 1)
+            self.assertIn("native extraction fails", "\n".join(result.facts))
+
+            graph_data = builder.get_graph_data(graph_id)
+            self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "blocked")
+            self.assertEqual(graph_data["graphiti_status"]["native_search_state"], "fallback")
+            self.assertTrue(graph_data["graphiti_errors"])
+            self.assertEqual(graph_data["native_graph_memory_state"], "blocked")
+        finally:
+            _GraphitiStub.do_POST = original_do_post
+
 
 if __name__ == "__main__":
     unittest.main()

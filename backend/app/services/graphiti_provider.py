@@ -37,6 +37,52 @@ def _base_url() -> str:
     return (Config.GRAPHITI_BASE_URL or Config.GRAPH_MEMORY_BASE_URL or "http://localhost:8000").rstrip("/")
 
 
+def _record_graphiti_event(
+    graph_id: str,
+    operation: str,
+    status: str,
+    *,
+    native_success: Optional[bool] = None,
+    error: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None,
+) -> None:
+    """Persist native-vs-fallback evidence in the MiroFish compatibility cache."""
+    graph = _load_graph(graph_id)
+    event: Dict[str, Any] = {
+        "at": _now(),
+        "operation": operation,
+        "status": status,
+    }
+    if native_success is not None:
+        event["native_success"] = native_success
+    if error:
+        event["error"] = error
+    if details:
+        event["details"] = details
+    graph.setdefault("graphiti_events", []).append(event)
+    status_obj = graph.setdefault("graphiti_status", {})
+    status_obj.update({
+        "provider": "graphiti",
+        "base_url": _base_url(),
+        "last_operation": operation,
+        "last_status": status,
+        "last_checked_at": event["at"],
+        "native_ingest_state": status_obj.get("native_ingest_state", "unknown"),
+        "fallback_cache_enabled": True,
+    })
+    if operation == "messages":
+        status_obj["native_ingest_state"] = "pass" if native_success else "blocked"
+    if operation == "search":
+        status_obj["native_search_state"] = "pass" if native_success else "fallback"
+    if error:
+        graph.setdefault("graphiti_errors", []).append({
+            "at": event["at"],
+            "operation": operation,
+            "error": error,
+        })
+    _save_graph(graph)
+
+
 def _json_request(method: str, path: str, payload: Optional[Dict[str, Any]] = None, timeout: float = 30.0) -> Dict[str, Any]:
     data = None
     headers = {"Content-Type": "application/json"}
@@ -100,22 +146,45 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
             })
         if messages:
             try:
-                _json_request("POST", "/messages", {"group_id": graph_id, "messages": messages}, timeout=180.0)
+                response = _json_request("POST", "/messages", {"group_id": graph_id, "messages": messages}, timeout=180.0)
+                _record_graphiti_event(
+                    graph_id,
+                    "messages",
+                    "native_ingest_pass",
+                    native_success=True,
+                    details={"message_count": len(messages), "response": response},
+                )
             except Exception as exc:
                 # Keep Graphiti mode usable even when the selected local LLM endpoint
                 # cannot satisfy Graphiti's strict structured-output schemas. The
                 # local compatibility cache still contains episodes/nodes/edges/search
                 # so the MiroFish product flow can complete while the richer Graphiti
                 # extraction backend is tuned or swapped via env.
-                graph = _load_graph(graph_id)
-                graph.setdefault("graphiti_errors", []).append({
-                    "at": _now(),
-                    "operation": "messages",
-                    "error": str(exc),
-                })
-                _save_graph(graph)
+                _record_graphiti_event(
+                    graph_id,
+                    "messages",
+                    "native_ingest_failed_using_fallback_cache",
+                    native_success=False,
+                    error=str(exc),
+                    details={"message_count": len(messages)},
+                )
                 logger.warning(f"Graphiti message mirror failed; continuing with local compatibility cache: {exc}")
         return episode_ids
+
+    def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
+        graph = super().get_graph_data(graph_id)
+        status_obj = graph.setdefault("graphiti_status", {})
+        status_obj.setdefault("provider", "graphiti")
+        status_obj.setdefault("base_url", _base_url())
+        status_obj.setdefault("fallback_cache_enabled", True)
+        status_obj.setdefault("native_ingest_state", "unknown")
+        status_obj["compatibility_cache"] = {
+            "node_count": len(graph.get("nodes", [])),
+            "edge_count": len(graph.get("edges", [])),
+            "episode_count": len(graph.get("episodes", [])),
+        }
+        graph["native_graph_memory_state"] = status_obj.get("native_ingest_state", "unknown")
+        return graph
 
     def delete_graph(self, graph_id: str) -> None:
         try:
@@ -139,6 +208,14 @@ class GraphitiToolsService(LocalSimpleToolsService):
             }, timeout=45.0)
             fact_rows = response.get("facts", []) or []
             facts = [row.get("fact", "") for row in fact_rows if row.get("fact")]
+            native_success = bool(facts)
+            _record_graphiti_event(
+                graph_id,
+                "search",
+                "native_search_pass" if native_success else "native_search_empty_using_fallback_cache",
+                native_success=native_success,
+                details={"query": query, "native_fact_count": len(facts), "limit": limit},
+            )
             edges = []
             for row in fact_rows:
                 edges.append({
@@ -165,6 +242,17 @@ class GraphitiToolsService(LocalSimpleToolsService):
             )
         except Exception as exc:
             logger.warning(f"Graphiti search failed; falling back to local cache: {exc}")
+            try:
+                _record_graphiti_event(
+                    graph_id,
+                    "search",
+                    "native_search_failed_using_fallback_cache",
+                    native_success=False,
+                    error=str(exc),
+                    details={"query": query, "limit": limit},
+                )
+            except Exception:
+                pass
             return super().search_graph(graph_id, query, limit=limit, scope=scope)
 
     def get_all_edges(self, graph_id: str, include_temporal: bool = True, include_expired: bool = True) -> List[EdgeInfo]:

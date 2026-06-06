@@ -222,3 +222,24 @@ Recommended first follow-up:
 ## Recommended next action
 
 Proceed with Phase 0 freeze, then immediately create a separate Phase 1 branch/task for native Graphiti extraction. Do not expand to public tunnel or production deployment until Phase 1 and Phase 2 pass.
+
+## Phase 1 progress: native/fallback evidence hardening
+
+Implemented after the baseline freeze:
+
+- `GraphitiGraphBuilder.add_text_batches()` records a `graphiti_events` entry for `/messages` native ingest success or fallback failure.
+- Graph data now exposes `graphiti_status` and `native_graph_memory_state` so API/UI/reporting can distinguish native Graphiti success from compatibility-cache product-flow success.
+- `GraphitiToolsService.search_graph()` records native search pass, empty-native fallback, or failed-native fallback.
+- Provider tests now cover both paths:
+  - native `/messages` + `/search` pass
+  - native `/messages` failure + empty native search with local compatibility fallback
+
+Current acceptance language after this phase:
+
+```text
+Graphiti evidence observability: PASS
+Fallback behavior regression test: PASS
+Native extraction repair: still next milestone
+```
+
+This phase does not claim to solve Graphiti's strict structured-output failures. It makes those failures visible and test-covered so the next repair/model-endpoint work can be validated without confusing product-flow fallback with true native Graphiti success.
