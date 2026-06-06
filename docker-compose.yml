@@ -7,8 +7,8 @@ services:
     environment:
       # Default local-first/ZEP-free runtime. Override in .env if you still want Zep Cloud.
       LLM_API_KEY: ${LLM_API_KEY:-dummy}
-      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:11434/v1}
-      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gpt-4o-mini}
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://host.docker.internal:10531/v1}
+      LLM_MODEL_NAME: ${LLM_MODEL_NAME:-gpt-5.5}
       LLM_BOOST_API_KEY: ${LLM_BOOST_API_KEY:-}
       LLM_BOOST_BASE_URL: ${LLM_BOOST_BASE_URL:-}
       LLM_BOOST_MODEL_NAME: ${LLM_BOOST_MODEL_NAME:-}
@@ -42,8 +42,10 @@ services:
     profiles: ["graphiti"]
     environment:
       OPENAI_API_KEY: ${GRAPH_MEMORY_OPENAI_API_KEY:-dummy}
-      OPENAI_BASE_URL: ${GRAPH_MEMORY_OPENAI_BASE_URL:-http://host.docker.internal:11434/v1}
-      MODEL_NAME: ${GRAPH_MEMORY_MODEL_NAME:-gpt-4o-mini}
+      OPENAI_BASE_URL: ${GRAPH_MEMORY_OPENAI_BASE_URL:-http://host.docker.internal:10531/v1}
+      # Default to the same OpenAI-compatible local GPT auth model used by the
+      # app container on this machine; override in .env for Ollama/LM Studio/etc.
+      MODEL_NAME: ${GRAPH_MEMORY_MODEL_NAME:-gpt-5.5}
       EMBEDDING_MODEL_NAME: ${GRAPH_MEMORY_EMBEDDING_MODEL_NAME:-jina-embeddings-v5-small}
       EMBEDDING_BASE_URL: ${GRAPH_MEMORY_EMBEDDING_BASE_URL:-http://host.docker.internal:8089/v1}
       EMBEDDING_API_KEY: ${GRAPH_MEMORY_EMBEDDING_API_KEY:-local-no-auth}

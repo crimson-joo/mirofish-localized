@@ -99,7 +99,22 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
                 "source_description": "mirofish-localized graph build seed",
             })
         if messages:
-            _json_request("POST", "/messages", {"group_id": graph_id, "messages": messages}, timeout=60.0)
+            try:
+                _json_request("POST", "/messages", {"group_id": graph_id, "messages": messages}, timeout=180.0)
+            except Exception as exc:
+                # Keep Graphiti mode usable even when the selected local LLM endpoint
+                # cannot satisfy Graphiti's strict structured-output schemas. The
+                # local compatibility cache still contains episodes/nodes/edges/search
+                # so the MiroFish product flow can complete while the richer Graphiti
+                # extraction backend is tuned or swapped via env.
+                graph = _load_graph(graph_id)
+                graph.setdefault("graphiti_errors", []).append({
+                    "at": _now(),
+                    "operation": "messages",
+                    "error": str(exc),
+                })
+                _save_graph(graph)
+                logger.warning(f"Graphiti message mirror failed; continuing with local compatibility cache: {exc}")
         return episode_ids
 
     def delete_graph(self, graph_id: str) -> None:
