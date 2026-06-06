@@ -1702,6 +1702,30 @@ def stop_simulation():
 
 # ============== 实时状态监控接口 ==============
 
+def _normalize_terminal_run_state(data):
+    """Expose a clear terminal state for bounded local demo runs.
+
+    Some local simulation subprocesses can leave the persisted runner_status as
+    `running` even after all configured rounds have emitted actions. For the Local
+    Demo MVP API surface, report that as completed so frontend badges and smoke
+    checks do not confuse a finished bounded run with an active process.
+    """
+    try:
+        status = data.get("runner_status")
+        current = int(data.get("current_round") or 0)
+        total = int(data.get("total_rounds") or 0)
+        actions = int(data.get("total_actions_count") or 0)
+        if status == "running" and total > 0 and current >= total and actions > 0:
+            data["runner_status_raw"] = status
+            data["runner_status"] = "completed"
+            data["terminal_state_normalized"] = True
+        else:
+            data.setdefault("runner_status_raw", status)
+            data["terminal_state_normalized"] = False
+    except Exception:
+        data["terminal_state_normalized"] = False
+    return data
+
 @simulation_bp.route('/<simulation_id>/run-status', methods=['GET'])
 def get_run_status(simulation_id: str):
     """
@@ -1746,9 +1770,10 @@ def get_run_status(simulation_id: str):
                 }
             })
         
+        data = _normalize_terminal_run_state(run_state.to_dict())
         return jsonify({
             "success": True,
-            "data": run_state.to_dict()
+            "data": data
         })
         
     except Exception as e:
@@ -1839,7 +1864,7 @@ def get_run_status_detail(simulation_id: str):
         ) if current_round > 0 else []
         
         # 获取基础状态信息
-        result = run_state.to_dict()
+        result = _normalize_terminal_run_state(run_state.to_dict())
         result["all_actions"] = [a.to_dict() for a in all_actions]
         result["twitter_actions"] = [a.to_dict() for a in twitter_actions]
         result["reddit_actions"] = [a.to_dict() for a in reddit_actions]

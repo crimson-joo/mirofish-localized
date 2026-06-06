@@ -243,3 +243,26 @@ Native extraction repair: still next milestone
 ```
 
 This phase does not claim to solve Graphiti's strict structured-output failures. It makes those failures visible and test-covered so the next repair/model-endpoint work can be validated without confusing product-flow fallback with true native Graphiti success.
+
+## Local Demo MVP completion scope
+
+The 1차 완성본 target is now defined as **Local Demo MVP**, not full native Graphiti replacement.
+
+Additional completion work:
+
+- Frontend history modal shows `graph_id`, `simulation_id`, `report_id`, Step1-Step5 state, `product_flow_state`, and Graphiti badges.
+- Bounded run-status APIs normalize stale `running` states to a clear terminal state when all configured rounds have emitted actions.
+- `scripts/local-smoke.sh` provides one-command PASS/FAIL validation for compose availability, backend/frontend/Graphiti health, key API routes, run-status, and graph runtime status exposure.
+- `docs/local-quickstart-ko.md` documents Korean quickstart, smoke validation, native-vs-fallback semantics, limitations, and troubleshooting.
+- `.env.example` documents that `GRAPH_PROVIDER=graphiti` may pass product flow through compatibility cache even when native structured-output extraction is blocked.
+
+Local Demo MVP acceptance language:
+
+```text
+Docker Compose local stack: PASS
+Backend/frontend/Graphiti health: PASS
+History/detail UI runtime visibility: PASS
+Key route smoke: PASS
+Graphiti native/fallback transparency: PASS
+Graphiti native extraction repair: deferred to 1.5/2차
+```
