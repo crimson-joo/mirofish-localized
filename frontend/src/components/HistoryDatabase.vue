@@ -33,6 +33,7 @@
         <div class="card-header">
           <span class="card-id">{{ formatSimulationId(project.simulation_id) }}</span>
           <div class="card-status-icons">
+            <span class="runtime-card-pill" :class="runtimeStateFor(project)">{{ runtimeLabelFor(project) }}</span>
             <span 
               class="status-icon" 
               :class="{ available: project.project_id, unavailable: !project.project_id }"
@@ -145,6 +146,20 @@
               <!-- Local Demo MVP runtime detail -->
               <div class="modal-section local-runtime-panel">
                 <div class="modal-label">Local Demo MVP Runtime</div>
+                <div class="runtime-verdict-row">
+                  <div class="runtime-verdict" :class="runtimeProductFlowClass">
+                    <span>제품 흐름</span>
+                    <strong>{{ runtimeProductFlowState.toUpperCase() }}</strong>
+                  </div>
+                  <div class="runtime-verdict" :class="graphitiNativeClass">
+                    <span>Graphiti native</span>
+                    <strong>{{ nativeExtractionLabel }}</strong>
+                  </div>
+                  <div class="runtime-verdict" :class="fallbackVerdictClass">
+                    <span>Fallback</span>
+                    <strong>{{ fallbackVerdictLabel }}</strong>
+                  </div>
+                </div>
                 <div class="runtime-grid">
                   <div><span>graph_id</span><strong>{{ selectedProject.graph_id || 'N/A' }}</strong></div>
                   <div><span>simulation_id</span><strong>{{ selectedProject.simulation_id || 'N/A' }}</strong></div>
@@ -280,6 +295,31 @@ const runtimeProductFlowState = computed(() => {
 })
 
 const runtimeProductFlowClass = computed(() => runtimeProductFlowState.value === 'pass' ? 'pass' : 'partial')
+
+const nativeExtractionLabel = computed(() => {
+  const ingest = graphitiStatus.value.native_ingest_state || 'unknown'
+  const search = graphitiStatus.value.native_search_state || 'unknown'
+  if (ingest === 'pass' && search === 'pass') return 'PASS'
+  if (ingest === 'blocked') return 'BLOCKED'
+  if (search === 'fallback') return 'FALLBACK'
+  return 'UNKNOWN'
+})
+
+const fallbackVerdictLabel = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? 'ENABLED' : 'UNKNOWN')
+const fallbackVerdictClass = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? 'partial' : 'blocked')
+
+const runtimeStateFor = (project) => {
+  if (project?.report_id) return 'pass'
+  if ((project?.current_round || 0) > 0 || project?.config_generated) return 'partial'
+  return 'pending'
+}
+
+const runtimeLabelFor = (project) => {
+  const state = runtimeStateFor(project)
+  if (state === 'pass') return 'FLOW PASS'
+  if (state === 'partial') return 'FLOW PARTIAL'
+  return 'FLOW PENDING'
+}
 
 const runtimeSteps = computed(() => {
   const p = selectedProject.value || {}
@@ -816,9 +856,25 @@ onUnmounted(() => {
 }
 
 /* 不同功能的颜色 */
-.status-icon:nth-child(1).available { color: #3B82F6; } /* 图谱构建 - 蓝色 */
-.status-icon:nth-child(2).available { color: #F59E0B; } /* 环境搭建 - 橙色 */
-.status-icon:nth-child(3).available { color: #10B981; } /* 分析报告 - 绿色 */
+.status-icon:nth-child(2).available { color: #3B82F6; } /* 图谱构建 - 蓝色 */
+.status-icon:nth-child(3).available { color: #F59E0B; } /* 环境搭建 - 橙色 */
+.status-icon:nth-child(4).available { color: #10B981; } /* 分析报告 - 绿色 */
+
+.runtime-card-pill {
+  padding: 2px 6px;
+  border-radius: 999px;
+  border: 1px solid #E5E7EB;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+  background: #F9FAFB;
+}
+
+.runtime-card-pill.pass { color: #047857 !important; border-color: rgba(16, 185, 129, 0.45) !important; }
+.runtime-card-pill.partial { color: #B45309 !important; border-color: rgba(245, 158, 11, 0.45) !important; }
+.runtime-card-pill.pending { color: #6B7280 !important; border-color: #E5E7EB !important; }
 
 .status-icon.unavailable {
   color: #D1D5DB;
@@ -1334,6 +1390,33 @@ onUnmounted(() => {
 
 .local-runtime-panel .modal-label {
   color: #FDBA74;
+}
+
+.runtime-verdict-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.runtime-verdict {
+  padding: 10px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid #334155;
+  border-radius: 8px;
+}
+
+.runtime-verdict span {
+  display: block;
+  color: #94A3B8;
+  font-size: 0.68rem;
+  margin-bottom: 4px;
+}
+
+.runtime-verdict strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.5px;
 }
 
 .runtime-grid {

@@ -39,8 +39,10 @@
 
 3. 자동화 상태
    - CI workflow가 테스트/build를 수행해야 함
-   - Pages workflow가 post-deploy canary를 수행해야 함
-   - Hermes webhook은 secret이 없으면 SKIPPED로 명확히 보고해야 함
+   - Pages workflow가 post-deploy scripted canary를 수행해야 함
+   - Pages workflow가 Playwright browser canary로 live render/console/marker를 확인해야 함
+   - Hermes webhook은 secret과 public tunnel이 있으면 post-deploy 결과를 Telegram으로 전달해야 함
+   - quick tunnel 기반 webhook은 개발/도그푸드용이며, 운영 안정화에는 named tunnel/static relay가 필요함
 
 ## 롤백 기준
 
