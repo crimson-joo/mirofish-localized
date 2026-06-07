@@ -79,9 +79,67 @@ jobs:
           done
           echo "CANARY PASS $url"
 
+      - name: Set up Node for browser canary
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright@latest
+          npx playwright install --with-deps chromium
+
+      - name: Run live browser canary
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          mkdir -p canary-artifacts
+          node <<'NODE'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const url = process.env.PAGE_URL || 'https://crimson-joo.github.io/mirofish-localized/';
+          const cacheBusted = `${url}?browser_canary=${process.env.GITHUB_RUN_ID}-${process.env.GITHUB_SHA}`;
+          const required = ['ZEP-free', 'Graphiti', 'Local quickstart', '정적 확인/문서 페이지'];
+          (async () => {
+            const browser = await chromium.launch({ headless: true });
+            const page = await browser.newPage({ viewport: { width: 1280, height: 1200 } });
+            const consoleErrors = [];
+            page.on('console', msg => {
+              if (['error'].includes(msg.type())) consoleErrors.push(msg.text());
+            });
+            page.on('pageerror', err => consoleErrors.push(err.message));
+            for (const target of [url, cacheBusted]) {
+              const response = await page.goto(target, { waitUntil: 'networkidle', timeout: 60000 });
+              if (!response || !response.ok()) throw new Error(`navigation failed ${target} status=${response && response.status()}`);
+              const text = await page.locator('body').innerText({ timeout: 15000 });
+              for (const marker of required) {
+                if (!text.includes(marker)) throw new Error(`missing live marker ${marker} at ${target}`);
+              }
+            }
+            await page.screenshot({ path: 'canary-artifacts/pages-live-canary.png', fullPage: true });
+            await browser.close();
+            fs.writeFileSync('canary-artifacts/pages-live-canary.json', JSON.stringify({ url, cacheBusted, required, consoleErrors }, null, 2));
+            if (consoleErrors.length) throw new Error(`browser console errors: ${consoleErrors.join('\n')}`);
+            console.log(`BROWSER CANARY PASS ${url}`);
+          })().catch(async err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
+
+      - name: Upload canary evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-live-canary
+          path: canary-artifacts/
+          if-no-files-found: ignore
+
       - name: Notify Hermes webhook if configured
         env:
           HERMES_WEBHOOK_URL: ${{ secrets.HERMES_WEBHOOK_URL }}
+          HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
           PAGE_URL: ${{ needs.deploy.outputs.page_url }}
         run: |
           set -euo pipefail
@@ -89,12 +147,35 @@ jobs:
             echo "HERMES_WEBHOOK_URL is not set; skipping Hermes webhook notification."
             exit 0
           fi
-          payload=$(jq -n \
-            --arg event "pages_canary_pass" \
-            --arg repo "$GITHUB_REPOSITORY" \
-            --arg sha "$GITHUB_SHA" \
-            --arg run_id "$GITHUB_RUN_ID" \
-            --arg page_url "$PAGE_URL" \
-            '{event:$event, repo:$repo, sha:$sha, run_id:$run_id, page_url:$page_url, qa_docs:["docs/current/qa.md","docs/current/release.md"]}')
-          curl -fsS -X POST -H 'Content-Type: application/json' -d "$payload" "$HERMES_WEBHOOK_URL"
-          echo "Hermes webhook notification sent."
+          node <<'NODE'
+          const crypto = require('crypto');
+          const payload = {
+            event: 'pages_canary_pass',
+            repo: process.env.GITHUB_REPOSITORY,
+            sha: process.env.GITHUB_SHA,
+            run_id: process.env.GITHUB_RUN_ID,
+            page_url: process.env.PAGE_URL,
+            qa_docs: ['docs/current/qa.md', 'docs/current/release.md'],
+          };
+          const body = JSON.stringify(payload);
+          const headers = {
+            'content-type': 'application/json',
+            'user-agent': 'mirofish-pages-github-actions',
+            'x-github-event': payload.event,
+          };
+          if (process.env.HERMES_WEBHOOK_SECRET) {
+            headers['x-hub-signature-256'] = 'sha256=' + crypto
+              .createHmac('sha256', process.env.HERMES_WEBHOOK_SECRET)
+              .update(body)
+              .digest('hex');
+          }
+          (async () => {
+            const response = await fetch(process.env.HERMES_WEBHOOK_URL, { method: 'POST', headers, body });
+            const text = await response.text();
+            console.log(`Hermes webhook response: ${response.status} ${text}`);
+            if (!response.ok) process.exit(1);
+          })().catch(err => {
+            console.error(err);
+            process.exit(1);
+          });
+          NODE
