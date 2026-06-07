@@ -2,9 +2,10 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: [main, master, feat/zep-free-compose-local]
+    branches: [main]
     paths:
       - "docs/pages/**"
+      - "docs/current/**"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -24,10 +25,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Read release/canary intent
+        run: |
+          test -f docs/current/qa.md
+          test -f docs/current/release.md
+          grep -q "GitHub Pages" docs/current/release.md
+          grep -q "Pages Canary" docs/current/qa.md
+
       - name: Prepare static site
         run: |
           mkdir -p _site
           cp -R docs/pages/. _site/
+          cp docs/current/qa.md _site/qa.md
+          cp docs/current/release.md _site/release.md
           touch _site/.nojekyll
 
       - name: Upload artifact
@@ -41,7 +51,50 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  canary:
+    runs-on: ubuntu-latest
+    needs: deploy
+    steps:
+      - name: Run post-deploy scripted canary
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          url="${PAGE_URL:-https://crimson-joo.github.io/mirofish-localized/}"
+          cache_busted="${url}?canary=${GITHUB_RUN_ID}-${GITHUB_SHA}"
+          for target in "$url" "$cache_busted"; do
+            echo "CANARY checking $target"
+            curl -fsSL "$target" -o page.html
+            grep -qi "ZEP-free" page.html
+            grep -qi "Graphiti" page.html
+            grep -qi "Local quickstart" page.html
+            grep -qi "정적 확인/문서 페이지" page.html
+          done
+          echo "CANARY PASS $url"
+
+      - name: Notify Hermes webhook if configured
+        env:
+          HERMES_WEBHOOK_URL: ${{ secrets.HERMES_WEBHOOK_URL }}
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HERMES_WEBHOOK_URL:-}" ]; then
+            echo "HERMES_WEBHOOK_URL is not set; skipping Hermes webhook notification."
+            exit 0
+          fi
+          payload=$(jq -n \
+            --arg event "pages_canary_pass" \
+            --arg repo "$GITHUB_REPOSITORY" \
+            --arg sha "$GITHUB_SHA" \
+            --arg run_id "$GITHUB_RUN_ID" \
+            --arg page_url "$PAGE_URL" \
+            '{event:$event, repo:$repo, sha:$sha, run_id:$run_id, page_url:$page_url, qa_docs:["docs/current/qa.md","docs/current/release.md"]}')
+          curl -fsS -X POST -H 'Content-Type: application/json' -d "$payload" "$HERMES_WEBHOOK_URL"
+          echo "Hermes webhook notification sent."
