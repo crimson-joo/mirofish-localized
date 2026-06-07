@@ -141,6 +141,33 @@
                 </div>
                 <div class="modal-empty" v-else>{{ $t('history.noRelatedFiles') }}</div>
               </div>
+
+              <!-- Local Demo MVP runtime detail -->
+              <div class="modal-section local-runtime-panel">
+                <div class="modal-label">Local Demo MVP Runtime</div>
+                <div class="runtime-grid">
+                  <div><span>graph_id</span><strong>{{ selectedProject.graph_id || 'N/A' }}</strong></div>
+                  <div><span>simulation_id</span><strong>{{ selectedProject.simulation_id || 'N/A' }}</strong></div>
+                  <div><span>report_id</span><strong>{{ selectedProject.report_id || 'N/A' }}</strong></div>
+                  <div><span>product_flow_state</span><strong :class="runtimeProductFlowClass">{{ runtimeProductFlowState }}</strong></div>
+                </div>
+
+                <div class="step-state-row">
+                  <span v-for="step in runtimeSteps" :key="step.key" class="step-state" :class="step.state">
+                    {{ step.label }}: {{ step.state.toUpperCase() }}
+                  </span>
+                </div>
+
+                <div class="graphiti-badges">
+                  <span class="graphiti-badge">provider: {{ graphitiStatus.provider || selectedProject.provider || 'unknown' }}</span>
+                  <span class="graphiti-badge" :class="graphitiNativeClass">native_ingest_state: {{ graphitiStatus.native_ingest_state || 'unknown' }}</span>
+                  <span class="graphiti-badge" :class="graphitiSearchClass">native_search_state: {{ graphitiStatus.native_search_state || 'unknown' }}</span>
+                  <span class="graphiti-badge">fallback_cache_enabled: {{ graphitiStatus.fallback_cache_enabled === true ? 'true' : 'unknown' }}</span>
+                </div>
+                <div v-if="graphDetailLoading" class="runtime-hint">Loading graph runtime status...</div>
+                <div v-else-if="graphDetailError" class="runtime-hint blocked">{{ graphDetailError }}</div>
+                <div v-else class="runtime-hint">Native Graphiti extraction과 compatibility fallback을 분리해서 표시합니다.</div>
+              </div>
             </div>
 
             <!-- 推演回放分割线 -->
@@ -195,6 +222,7 @@ import { ref, computed, onMounted, onUnmounted, onActivated, watch, nextTick } f
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getSimulationHistory } from '../api/simulation'
+import { getGraphData } from '../api/graph'
 
 const router = useRouter()
 const route = useRoute()
@@ -207,6 +235,9 @@ const isExpanded = ref(false)
 const hoveringCard = ref(null)
 const historyContainer = ref(null)
 const selectedProject = ref(null)  // 当前选中的项目（用于弹窗）
+const selectedGraphData = ref(null)
+const graphDetailLoading = ref(false)
+const graphDetailError = ref('')
 let observer = null
 let isAnimating = false  // 动画锁，防止闪烁
 let expandDebounceTimer = null  // 防抖定时器
@@ -236,6 +267,47 @@ const containerStyle = computed(() => {
   const expandedHeight = rows * CARD_HEIGHT + (rows - 1) * CARD_GAP + 10
   
   return { minHeight: `${expandedHeight}px` }
+})
+
+const graphitiStatus = computed(() => selectedGraphData.value?.graphiti_status || selectedProject.value?.graphiti_status || {})
+
+const runtimeProductFlowState = computed(() => {
+  if (!selectedProject.value) return 'unknown'
+  if (selectedProject.value.report_id) return 'pass'
+  if ((selectedProject.value.current_round || 0) > 0) return 'partial'
+  if (selectedProject.value.config_generated) return 'partial'
+  return 'pending'
+})
+
+const runtimeProductFlowClass = computed(() => runtimeProductFlowState.value === 'pass' ? 'pass' : 'partial')
+
+const runtimeSteps = computed(() => {
+  const p = selectedProject.value || {}
+  const graphReady = Boolean(p.graph_id || p.project_id)
+  const envReady = Boolean(p.config_generated || p.profiles_count)
+  const runReady = (p.current_round || 0) > 0 || p.runner_status === 'completed' || p.runner_status === 'stopped'
+  const reportReady = Boolean(p.report_id)
+  return [
+    { key: 'graph', label: 'Step1 graph', state: graphReady ? 'pass' : 'pending' },
+    { key: 'env', label: 'Step2 env', state: envReady ? 'pass' : 'pending' },
+    { key: 'run', label: 'Step3 run', state: runReady ? 'pass' : 'pending' },
+    { key: 'report', label: 'Step4 report', state: reportReady ? 'pass' : 'pending' },
+    { key: 'interaction', label: 'Step5 interaction', state: reportReady ? 'pass' : 'pending' },
+  ]
+})
+
+const graphitiNativeClass = computed(() => {
+  const state = graphitiStatus.value.native_ingest_state
+  if (state === 'pass') return 'pass'
+  if (state === 'blocked') return 'blocked'
+  return 'partial'
+})
+
+const graphitiSearchClass = computed(() => {
+  const state = graphitiStatus.value.native_search_state
+  if (state === 'pass') return 'pass'
+  if (state === 'fallback') return 'partial'
+  return 'partial'
 })
 
 // 获取卡片样式
@@ -394,13 +466,34 @@ const truncateFilename = (filename, maxLength) => {
 }
 
 // 打开项目详情弹窗
-const navigateToProject = (simulation) => {
+const navigateToProject = async (simulation) => {
   selectedProject.value = simulation
+  selectedGraphData.value = null
+  graphDetailError.value = ''
+
+  if (!simulation?.graph_id) return
+
+  try {
+    graphDetailLoading.value = true
+    const response = await getGraphData(simulation.graph_id)
+    if (response.success) {
+      selectedGraphData.value = response.data
+    } else {
+      graphDetailError.value = response.error || 'Graph runtime status unavailable'
+    }
+  } catch (error) {
+    graphDetailError.value = `Graph runtime status unavailable: ${error?.message || error}`
+  } finally {
+    graphDetailLoading.value = false
+  }
 }
 
 // 关闭弹窗
 const closeModal = () => {
   selectedProject.value = null
+  selectedGraphData.value = null
+  graphDetailError.value = ''
+  graphDetailLoading.value = false
 }
 
 // 导航到图谱构建页面（Project）
@@ -1229,6 +1322,94 @@ onUnmounted(() => {
   border: 1px dashed #E5E7EB;
   border-radius: 6px;
   text-align: center;
+}
+
+.local-runtime-panel {
+  padding: 16px;
+  background: #0F172A;
+  border: 1px solid #1E293B;
+  border-radius: 10px;
+  color: #E5E7EB;
+}
+
+.local-runtime-panel .modal-label {
+  color: #FDBA74;
+}
+
+.runtime-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.runtime-grid div {
+  padding: 8px;
+  background: rgba(15, 23, 42, 0.9);
+  border: 1px solid #334155;
+  border-radius: 6px;
+  min-width: 0;
+}
+
+.runtime-grid span {
+  display: block;
+  color: #94A3B8;
+  font-size: 0.68rem;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.runtime-grid strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #F8FAFC;
+  font-size: 0.8rem;
+  margin-top: 3px;
+}
+
+.step-state-row,
+.graphiti-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.step-state,
+.graphiti-badge {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  background: #1E293B;
+  border: 1px solid #334155;
+  color: #CBD5E1;
+}
+
+.pass {
+  color: #86EFAC !important;
+  border-color: rgba(34, 197, 94, 0.45) !important;
+}
+
+.partial {
+  color: #FDE68A !important;
+  border-color: rgba(245, 158, 11, 0.45) !important;
+}
+
+.blocked {
+  color: #FDA4AF !important;
+  border-color: rgba(244, 63, 94, 0.45) !important;
+}
+
+.pending {
+  color: #CBD5E1 !important;
+}
+
+.runtime-hint {
+  margin-top: 10px;
+  color: #94A3B8;
+  font-size: 0.75rem;
 }
 
 /* 推演回放分割线 */
