@@ -8,12 +8,31 @@ import os
 from graphiti_core.edges import EntityEdge  # type: ignore
 from graphiti_core.errors import EdgeNotFoundError, GroupsEdgesNotFoundError, NodeNotFoundError
 from graphiti_core.llm_client import LLMClient  # type: ignore
+from graphiti_core.llm_client.config import LLMConfig  # type: ignore
+from graphiti_core.llm_client.openai_client import OpenAIClient  # type: ignore
 from graphiti_core.nodes import EntityNode, EpisodicNode  # type: ignore
 
 from graph_service.config import ZepEnvDep
 from graph_service.dto import FactResult
 
 logger = logging.getLogger(__name__)
+
+
+def _openai_llm_client(settings: ZepEnvDep) -> OpenAIClient:
+    """Build Graphiti's extraction LLM client from explicit graph-memory env.
+
+    Graphiti native extraction is stricter than MiroFish chat completion usage.
+    Keeping this client explicit makes it possible to point Graphiti at a
+    stronger structured-output model without changing the app-facing LLM.
+    """
+    return OpenAIClient(
+        config=LLMConfig(
+            api_key=os.environ.get('GRAPH_MEMORY_OPENAI_API_KEY') or settings.openai_api_key,
+            base_url=os.environ.get('GRAPH_MEMORY_OPENAI_BASE_URL') or settings.openai_base_url,
+            model=os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
+            small_model=os.environ.get('GRAPH_MEMORY_SMALL_MODEL_NAME') or os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
+        )
+    )
 
 
 class ZepGraphiti(Graphiti):
@@ -86,14 +105,9 @@ async def get_graphiti(settings: ZepEnvDep):
         uri=settings.neo4j_uri,
         user=settings.neo4j_user,
         password=settings.neo4j_password,
+        llm_client=_openai_llm_client(settings),
         embedder=embedder,
     )
-    if settings.openai_base_url is not None:
-        client.llm_client.config.base_url = settings.openai_base_url
-    if settings.openai_api_key is not None:
-        client.llm_client.config.api_key = settings.openai_api_key
-    if settings.model_name is not None:
-        client.llm_client.model = settings.model_name
 
     try:
         yield client
@@ -114,6 +128,7 @@ async def initialize_graphiti(settings: ZepEnvDep):
         uri=settings.neo4j_uri,
         user=settings.neo4j_user,
         password=settings.neo4j_password,
+        llm_client=_openai_llm_client(settings),
         embedder=embedder,
     )
     await client.build_indices_and_constraints()

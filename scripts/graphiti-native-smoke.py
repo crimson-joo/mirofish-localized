@@ -10,6 +10,8 @@ retrieve searchable facts.
 from __future__ import annotations
 
 import json
+import os
+import re
 import sys
 import time
 import urllib.error
@@ -17,6 +19,7 @@ import urllib.request
 from datetime import datetime
 
 BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:8000"
+STRICT_NATIVE = os.environ.get("GRAPHITI_NATIVE_ONLY_SMOKE", "0").lower() in {"1", "true", "yes"}
 GROUP_ID = f"native_smoke_{int(time.time())}"
 CONTENT = "Alice recommends Bob's MiroFish Graphiti native repair adapter for ZEP-free local runtime validation."
 
@@ -65,6 +68,16 @@ def main() -> int:
         print(f"FAIL messages status={status} payload={ingest}")
         return 1
     print(f"PASS messages {ingest}")
+    message = ingest.get("message", "") if isinstance(ingest, dict) else ""
+    native_match = re.search(r"native=(\d+)", message)
+    repaired_match = re.search(r"repaired=(\d+)", message)
+    native_count = int(native_match.group(1)) if native_match else 0
+    repaired_count = int(repaired_match.group(1)) if repaired_match else 0
+    if STRICT_NATIVE and (native_count < 1 or repaired_count > 0):
+        print(f"FAIL strict_native_extraction native={native_count} repaired={repaired_count}")
+        return 1
+    if STRICT_NATIVE:
+        print(f"PASS strict_native_extraction native={native_count} repaired={repaired_count}")
 
     status, search = request(
         "POST",

@@ -27,6 +27,7 @@ Embedding: OpenAI-compatible local embedding endpoint
 cd /Users/crimson/Projects/mirofish-localized
 cp .env.example .env
 # 필요 시 .env에서 LLM/embedding endpoint 조정
+# Graphiti extraction만 별도 모델로 강화하려면 GRAPH_MEMORY_MODEL_NAME / GRAPH_MEMORY_SMALL_MODEL_NAME 조정
 GRAPH_PROVIDER=graphiti docker compose --profile graphiti up -d --build
 ```
 
@@ -70,6 +71,14 @@ native smoke를 건너뛰려면:
 ```bash
 RUN_GRAPHITI_NATIVE_SMOKE=0 ./scripts/local-smoke.sh
 ```
+
+2차 hardening에서는 repair adapter 없이 Graphiti LLM extraction 자체가 통과하는지 확인하는 strict gate도 제공합니다.
+
+```bash
+GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py
+```
+
+이 모드는 `/messages` 결과가 `native>=1, repaired=0`일 때만 PASS입니다. 현재 로컬 endpoint가 strict structured-output schema를 만족하지 못하면 FAIL이 정상이며, 그 경우 `GRAPH_MEMORY_MODEL_NAME` 또는 `GRAPH_MEMORY_SMALL_MODEL_NAME`을 structured-output에 강한 모델 endpoint로 바꿔 재검증합니다.
 
 선택적으로 mini graph build smoke를 붙일 수 있지만, LLM token/시간을 쓰므로 기본값은 skip입니다.
 
@@ -127,7 +136,7 @@ Fallback cache: ENABLED
 - 이 경우 patched native repair adapter가 Graphiti/Neo4j에 conservative searchable fact를 직접 저장합니다. 따라서 Graphiti-native `/search` smoke는 통과할 수 있지만, 이것을 “완전한 LLM 기반 entity/edge extraction”으로 보지는 않습니다.
 - Local Demo MVP는 compatibility cache로 Step1~Step5 제품 흐름도 계속 통과합니다.
 - public tunnel/cloud demo, multi-user production security, million-agent production scale은 1차 완성본 범위가 아닙니다.
-- Graphiti native extraction 완전 안정화는 1.5차/2차 milestone입니다.
+- Graphiti native extraction 완전 안정화는 2차 milestone입니다. 이번 hardening에서는 Graphiti 전용 model/small_model env와 strict native-only smoke gate를 추가해, repair adapter에 기대지 않는 full extraction 상태를 분리 판정합니다.
 
 ## Troubleshooting
 

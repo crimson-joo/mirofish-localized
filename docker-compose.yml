@@ -46,6 +46,9 @@ services:
       # Default to the same OpenAI-compatible local GPT auth model used by the
       # app container on this machine; override in .env for Ollama/LM Studio/etc.
       MODEL_NAME: ${GRAPH_MEMORY_MODEL_NAME:-gpt-5.5}
+      # Optional: point Graphiti's small-model extraction pass at a stricter
+      # structured-output model without changing the app-facing LLM.
+      GRAPH_MEMORY_SMALL_MODEL_NAME: ${GRAPH_MEMORY_SMALL_MODEL_NAME:-gpt-5.5}
       EMBEDDING_MODEL_NAME: ${GRAPH_MEMORY_EMBEDDING_MODEL_NAME:-jina-embeddings-v5-small}
       EMBEDDING_BASE_URL: ${GRAPH_MEMORY_EMBEDDING_BASE_URL:-http://host.docker.internal:8089/v1}
       EMBEDDING_API_KEY: ${GRAPH_MEMORY_EMBEDDING_API_KEY:-local-no-auth}
