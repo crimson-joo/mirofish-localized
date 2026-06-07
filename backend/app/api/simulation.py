@@ -9,7 +9,7 @@ from flask import request, jsonify, send_file
 
 from . import simulation_bp
 from ..config import Config
-from ..services.zep_entity_reader import ZepEntityReader
+from ..services.graph_provider import get_entity_reader, is_zep_provider
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
@@ -57,7 +57,7 @@ def get_graph_entities(graph_id: str):
         enrich: 是否获取相关边信息（默认true）
     """
     try:
-        if not Config.ZEP_API_KEY:
+        if is_zep_provider() and not Config.ZEP_API_KEY:
             return jsonify({
                 "success": False,
                 "error": t('api.zepApiKeyMissing')
@@ -69,7 +69,7 @@ def get_graph_entities(graph_id: str):
         
         logger.info(f"获取图谱实体: graph_id={graph_id}, entity_types={entity_types}, enrich={enrich}")
         
-        reader = ZepEntityReader()
+        reader = get_entity_reader()
         result = reader.filter_defined_entities(
             graph_id=graph_id,
             defined_entity_types=entity_types,
@@ -94,13 +94,13 @@ def get_graph_entities(graph_id: str):
 def get_entity_detail(graph_id: str, entity_uuid: str):
     """获取单个实体的详细信息"""
     try:
-        if not Config.ZEP_API_KEY:
+        if is_zep_provider() and not Config.ZEP_API_KEY:
             return jsonify({
                 "success": False,
                 "error": t('api.zepApiKeyMissing')
             }), 500
         
-        reader = ZepEntityReader()
+        reader = get_entity_reader()
         entity = reader.get_entity_with_context(graph_id, entity_uuid)
         
         if not entity:
@@ -127,7 +127,7 @@ def get_entity_detail(graph_id: str, entity_uuid: str):
 def get_entities_by_type(graph_id: str, entity_type: str):
     """获取指定类型的所有实体"""
     try:
-        if not Config.ZEP_API_KEY:
+        if is_zep_provider() and not Config.ZEP_API_KEY:
             return jsonify({
                 "success": False,
                 "error": t('api.zepApiKeyMissing')
@@ -135,7 +135,7 @@ def get_entities_by_type(graph_id: str, entity_type: str):
         
         enrich = request.args.get('enrich', 'true').lower() == 'true'
         
-        reader = ZepEntityReader()
+        reader = get_entity_reader()
         entities = reader.get_entities_by_type(
             graph_id=graph_id,
             entity_type=entity_type,
@@ -472,7 +472,7 @@ def prepare_simulation():
         # 这样前端在调用prepare后立即就能获取到预期Agent总数
         try:
             logger.info(f"同步获取实体数量: graph_id={state.graph_id}")
-            reader = ZepEntityReader()
+            reader = get_entity_reader()
             # 快速读取实体（不需要边信息，只统计数量）
             filtered_preview = reader.filter_defined_entities(
                 graph_id=state.graph_id,
@@ -1401,7 +1401,7 @@ def generate_profiles():
         use_llm = data.get('use_llm', True)
         platform = data.get('platform', 'reddit')
         
-        reader = ZepEntityReader()
+        reader = get_entity_reader()
         filtered = reader.filter_defined_entities(
             graph_id=graph_id,
             defined_entity_types=entity_types,
@@ -1702,6 +1702,30 @@ def stop_simulation():
 
 # ============== 实时状态监控接口 ==============
 
+def _normalize_terminal_run_state(data):
+    """Expose a clear terminal state for bounded local demo runs.
+
+    Some local simulation subprocesses can leave the persisted runner_status as
+    `running` even after all configured rounds have emitted actions. For the Local
+    Demo MVP API surface, report that as completed so frontend badges and smoke
+    checks do not confuse a finished bounded run with an active process.
+    """
+    try:
+        status = data.get("runner_status")
+        current = int(data.get("current_round") or 0)
+        total = int(data.get("total_rounds") or 0)
+        actions = int(data.get("total_actions_count") or 0)
+        if status == "running" and total > 0 and current >= total and actions > 0:
+            data["runner_status_raw"] = status
+            data["runner_status"] = "completed"
+            data["terminal_state_normalized"] = True
+        else:
+            data.setdefault("runner_status_raw", status)
+            data["terminal_state_normalized"] = False
+    except Exception:
+        data["terminal_state_normalized"] = False
+    return data
+
 @simulation_bp.route('/<simulation_id>/run-status', methods=['GET'])
 def get_run_status(simulation_id: str):
     """
@@ -1746,9 +1770,10 @@ def get_run_status(simulation_id: str):
                 }
             })
         
+        data = _normalize_terminal_run_state(run_state.to_dict())
         return jsonify({
             "success": True,
-            "data": run_state.to_dict()
+            "data": data
         })
         
     except Exception as e:
@@ -1839,7 +1864,7 @@ def get_run_status_detail(simulation_id: str):
         ) if current_round > 0 else []
         
         # 获取基础状态信息
-        result = run_state.to_dict()
+        result = _normalize_terminal_run_state(run_state.to_dict())
         result["all_actions"] = [a.to_dict() for a in all_actions]
         result["twitter_actions"] = [a.to_dict() for a in twitter_actions]
         result["reddit_actions"] = [a.to_dict() for a in reddit_actions]
