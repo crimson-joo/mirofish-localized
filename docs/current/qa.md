@@ -25,6 +25,7 @@
 
 - Live URL: `https://crimson-joo.github.io/mirofish-localized/`
 - Cache-busted URL도 200
+- Playwright browser canary에서 live render/console/marker 확인
 - 문서 페이지에 다음 의도 표시:
   - ZEP-free
   - Compose-first
