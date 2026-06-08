@@ -75,7 +75,13 @@
     "layoutGraph": "图谱",
     "layoutSplit": "双栏",
     "layoutWorkbench": "工作台",
-    "stepNames": ["图谱构建", "环境搭建", "开始模拟", "报告生成", "深度互动"]
+    "stepNames": [
+      "图谱构建",
+      "环境搭建",
+      "开始模拟",
+      "报告生成",
+      "深度互动"
+    ]
   },
   "step1": {
     "ontologyGeneration": "本体生成",
@@ -316,7 +322,35 @@
     "notStarted": "未开始",
     "roundsProgress": "{current}/{total} 轮",
     "untitledSimulation": "未命名模拟",
-    "unknownFile": "未知文件"
+    "unknownFile": "未知文件",
+    "runtimeTitle": "运行状态摘要",
+    "productFlow": "整体流程",
+    "graphitiDirect": "Graphiti 直接处理",
+    "fallbackMode": "备用处理",
+    "graphId": "图谱 ID",
+    "simulationId": "模拟 ID",
+    "reportId": "报告 ID",
+    "productFlowState": "流程状态",
+    "provider": "处理方式",
+    "graphitiIngest": "Graphiti 写入",
+    "graphitiSearch": "Graphiti 搜索",
+    "fallbackCache": "备用缓存",
+    "enabled": "已启用",
+    "runtimeLoading": "正在加载运行状态...",
+    "runtimeHint": "分别展示 Graphiti 直接处理与备用处理的使用情况。",
+    "statusPass": "已完成",
+    "statusPartial": "进行中",
+    "statusPending": "等待中",
+    "statusBlocked": "受阻",
+    "statusFallback": "备用处理",
+    "flowPass": "流程完成",
+    "flowPartial": "部分进行",
+    "flowPending": "尚未开始",
+    "step1Short": "图谱",
+    "step2Short": "环境",
+    "step3Short": "运行",
+    "step4Short": "报告",
+    "step5Short": "对话"
   },
   "api": {
     "projectNotFound": "项目不存在: {id}",
