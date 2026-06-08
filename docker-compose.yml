@@ -13,7 +13,7 @@ services:
       LLM_BOOST_BASE_URL: ${LLM_BOOST_BASE_URL:-}
       LLM_BOOST_MODEL_NAME: ${LLM_BOOST_MODEL_NAME:-}
       ZEP_API_KEY: ${ZEP_API_KEY:-}
-      GRAPH_PROVIDER: ${GRAPH_PROVIDER:-local_simple}
+      GRAPH_PROVIDER: ${GRAPH_PROVIDER:-graphiti}
       LOCAL_GRAPH_STORAGE_DIR: ${LOCAL_GRAPH_STORAGE_DIR:-/app/backend/uploads/local_graphs}
       GRAPH_MEMORY_BASE_URL: ${GRAPH_MEMORY_BASE_URL:-http://graph-memory:8000}
       GRAPHITI_BASE_URL: ${GRAPHITI_BASE_URL:-http://graph-memory:8000}
@@ -33,8 +33,9 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
-  # Graphiti/Graphifi runtime profile. The app boots with GRAPH_PROVIDER=local_simple
-  # by default; set GRAPH_PROVIDER=graphiti to mirror episodes/searches through it.
+  # Graphiti/Graphifi runtime profile. The app defaults to GRAPH_PROVIDER=graphiti;
+  # use the graphiti profile so Graphiti/Neo4j are available, or explicitly set
+  # GRAPH_PROVIDER=local_simple only for developer scaffold tests.
   graph-memory:
     build:
       context: ./services/graphiti-patched
