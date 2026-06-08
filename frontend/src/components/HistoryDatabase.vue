@@ -145,43 +145,43 @@
 
               <!-- Local Demo MVP runtime detail -->
               <div class="modal-section local-runtime-panel">
-                <div class="modal-label">Local Demo MVP Runtime</div>
+                <div class="modal-label">{{ $t('history.runtimeTitle') }}</div>
                 <div class="runtime-verdict-row">
                   <div class="runtime-verdict" :class="runtimeProductFlowClass">
-                    <span>제품 흐름</span>
-                    <strong>{{ runtimeProductFlowState.toUpperCase() }}</strong>
+                    <span>{{ $t('history.productFlow') }}</span>
+                    <strong>{{ runtimeProductFlowText }}</strong>
                   </div>
                   <div class="runtime-verdict" :class="graphitiNativeClass">
-                    <span>Graphiti native</span>
+                    <span>{{ $t('history.graphitiDirect') }}</span>
                     <strong>{{ nativeExtractionLabel }}</strong>
                   </div>
                   <div class="runtime-verdict" :class="fallbackVerdictClass">
-                    <span>Fallback</span>
+                    <span>{{ $t('history.fallbackMode') }}</span>
                     <strong>{{ fallbackVerdictLabel }}</strong>
                   </div>
                 </div>
                 <div class="runtime-grid">
-                  <div><span>graph_id</span><strong>{{ selectedProject.graph_id || 'N/A' }}</strong></div>
-                  <div><span>simulation_id</span><strong>{{ selectedProject.simulation_id || 'N/A' }}</strong></div>
-                  <div><span>report_id</span><strong>{{ selectedProject.report_id || 'N/A' }}</strong></div>
-                  <div><span>product_flow_state</span><strong :class="runtimeProductFlowClass">{{ runtimeProductFlowState }}</strong></div>
+                  <div><span>{{ $t('history.graphId') }}</span><strong>{{ selectedProject.graph_id || 'N/A' }}</strong></div>
+                  <div><span>{{ $t('history.simulationId') }}</span><strong>{{ selectedProject.simulation_id || 'N/A' }}</strong></div>
+                  <div><span>{{ $t('history.reportId') }}</span><strong>{{ selectedProject.report_id || 'N/A' }}</strong></div>
+                  <div><span>{{ $t('history.productFlowState') }}</span><strong :class="runtimeProductFlowClass">{{ runtimeProductFlowText }}</strong></div>
                 </div>
 
                 <div class="step-state-row">
                   <span v-for="step in runtimeSteps" :key="step.key" class="step-state" :class="step.state">
-                    {{ step.label }}: {{ step.state.toUpperCase() }}
+                    {{ step.label }}: {{ formatRuntimeState(step.state) }}
                   </span>
                 </div>
 
                 <div class="graphiti-badges">
-                  <span class="graphiti-badge">provider: {{ graphitiStatus.provider || selectedProject.provider || 'unknown' }}</span>
-                  <span class="graphiti-badge" :class="graphitiNativeClass">native_ingest_state: {{ graphitiStatus.native_ingest_state || 'unknown' }}</span>
-                  <span class="graphiti-badge" :class="graphitiSearchClass">native_search_state: {{ graphitiStatus.native_search_state || 'unknown' }}</span>
-                  <span class="graphiti-badge">fallback_cache_enabled: {{ graphitiStatus.fallback_cache_enabled === true ? 'true' : 'unknown' }}</span>
+                  <span class="graphiti-badge">{{ $t('history.provider') }}: {{ graphitiStatus.provider || selectedProject.provider || $t('common.unknown') }}</span>
+                  <span class="graphiti-badge" :class="graphitiNativeClass">{{ $t('history.graphitiIngest') }}: {{ formatRuntimeState(graphitiStatus.native_ingest_state) }}</span>
+                  <span class="graphiti-badge" :class="graphitiSearchClass">{{ $t('history.graphitiSearch') }}: {{ formatRuntimeState(graphitiStatus.native_search_state) }}</span>
+                  <span class="graphiti-badge">{{ $t('history.fallbackCache') }}: {{ graphitiStatus.fallback_cache_enabled === true ? $t('history.enabled') : $t('common.unknown') }}</span>
                 </div>
-                <div v-if="graphDetailLoading" class="runtime-hint">Loading graph runtime status...</div>
+                <div v-if="graphDetailLoading" class="runtime-hint">{{ $t('history.runtimeLoading') }}</div>
                 <div v-else-if="graphDetailError" class="runtime-hint blocked">{{ graphDetailError }}</div>
-                <div v-else class="runtime-hint">Native Graphiti extraction과 compatibility fallback을 분리해서 표시합니다.</div>
+                <div v-else class="runtime-hint">{{ $t('history.runtimeHint') }}</div>
               </div>
             </div>
 
@@ -295,17 +295,28 @@ const runtimeProductFlowState = computed(() => {
 })
 
 const runtimeProductFlowClass = computed(() => runtimeProductFlowState.value === 'pass' ? 'pass' : 'partial')
+const runtimeProductFlowText = computed(() => formatRuntimeState(runtimeProductFlowState.value))
+
+const formatRuntimeState = (state) => {
+  const normalized = state || 'unknown'
+  if (normalized === 'pass') return t('history.statusPass')
+  if (normalized === 'partial') return t('history.statusPartial')
+  if (normalized === 'pending') return t('history.statusPending')
+  if (normalized === 'blocked') return t('history.statusBlocked')
+  if (normalized === 'fallback') return t('history.statusFallback')
+  return t('common.unknown')
+}
 
 const nativeExtractionLabel = computed(() => {
   const ingest = graphitiStatus.value.native_ingest_state || 'unknown'
   const search = graphitiStatus.value.native_search_state || 'unknown'
-  if (ingest === 'pass' && search === 'pass') return 'PASS'
-  if (ingest === 'blocked') return 'BLOCKED'
-  if (search === 'fallback') return 'FALLBACK'
-  return 'UNKNOWN'
+  if (ingest === 'pass' && search === 'pass') return t('history.statusPass')
+  if (ingest === 'blocked') return t('history.statusBlocked')
+  if (search === 'fallback') return t('history.statusFallback')
+  return t('common.unknown')
 })
 
-const fallbackVerdictLabel = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? 'ENABLED' : 'UNKNOWN')
+const fallbackVerdictLabel = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? t('history.enabled') : t('common.unknown'))
 const fallbackVerdictClass = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? 'partial' : 'blocked')
 
 const runtimeStateFor = (project) => {
@@ -316,9 +327,9 @@ const runtimeStateFor = (project) => {
 
 const runtimeLabelFor = (project) => {
   const state = runtimeStateFor(project)
-  if (state === 'pass') return 'FLOW PASS'
-  if (state === 'partial') return 'FLOW PARTIAL'
-  return 'FLOW PENDING'
+  if (state === 'pass') return t('history.flowPass')
+  if (state === 'partial') return t('history.flowPartial')
+  return t('history.flowPending')
 }
 
 const runtimeSteps = computed(() => {
@@ -328,11 +339,11 @@ const runtimeSteps = computed(() => {
   const runReady = (p.current_round || 0) > 0 || p.runner_status === 'completed' || p.runner_status === 'stopped'
   const reportReady = Boolean(p.report_id)
   return [
-    { key: 'graph', label: 'Step1 graph', state: graphReady ? 'pass' : 'pending' },
-    { key: 'env', label: 'Step2 env', state: envReady ? 'pass' : 'pending' },
-    { key: 'run', label: 'Step3 run', state: runReady ? 'pass' : 'pending' },
-    { key: 'report', label: 'Step4 report', state: reportReady ? 'pass' : 'pending' },
-    { key: 'interaction', label: 'Step5 interaction', state: reportReady ? 'pass' : 'pending' },
+    { key: 'graph', label: t('history.step1Short'), state: graphReady ? 'pass' : 'pending' },
+    { key: 'env', label: t('history.step2Short'), state: envReady ? 'pass' : 'pending' },
+    { key: 'run', label: t('history.step3Short'), state: runReady ? 'pass' : 'pending' },
+    { key: 'report', label: t('history.step4Short'), state: reportReady ? 'pass' : 'pending' },
+    { key: 'interaction', label: t('history.step5Short'), state: reportReady ? 'pass' : 'pending' },
   ]
 })
 
