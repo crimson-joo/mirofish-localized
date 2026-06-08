@@ -75,7 +75,13 @@
     "layoutGraph": "Graph",
     "layoutSplit": "Split",
     "layoutWorkbench": "Workbench",
-    "stepNames": ["Graph Build", "Env Setup", "Run Simulation", "Report Generation", "Deep Interaction"]
+    "stepNames": [
+      "Graph Build",
+      "Env Setup",
+      "Run Simulation",
+      "Report Generation",
+      "Deep Interaction"
+    ]
   },
   "step1": {
     "ontologyGeneration": "Ontology Generation",
@@ -316,7 +322,35 @@
     "notStarted": "Not started",
     "roundsProgress": "{current}/{total} rounds",
     "untitledSimulation": "Untitled simulation",
-    "unknownFile": "Unknown file"
+    "unknownFile": "Unknown file",
+    "runtimeTitle": "Runtime Status Summary",
+    "productFlow": "Overall Flow",
+    "graphitiDirect": "Graphiti Direct",
+    "fallbackMode": "Fallback Path",
+    "graphId": "Graph ID",
+    "simulationId": "Simulation ID",
+    "reportId": "Report ID",
+    "productFlowState": "Flow State",
+    "provider": "Provider",
+    "graphitiIngest": "Graphiti Ingest",
+    "graphitiSearch": "Graphiti Search",
+    "fallbackCache": "Fallback Cache",
+    "enabled": "Enabled",
+    "runtimeLoading": "Loading runtime status...",
+    "runtimeHint": "Shows Graphiti direct processing and fallback usage separately.",
+    "statusPass": "Done",
+    "statusPartial": "In Progress",
+    "statusPending": "Pending",
+    "statusBlocked": "Blocked",
+    "statusFallback": "Fallback",
+    "flowPass": "Flow Done",
+    "flowPartial": "Partial Flow",
+    "flowPending": "Not Started",
+    "step1Short": "Graph",
+    "step2Short": "Env",
+    "step3Short": "Run",
+    "step4Short": "Report",
+    "step5Short": "Chat"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",
