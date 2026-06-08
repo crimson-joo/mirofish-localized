@@ -1,9 +1,10 @@
 """Graphiti/Graphifi-backed provider for local ZEP replacement.
 
 The upstream Graphiti FastAPI server does not expose the exact Zep Cloud graph
-API that MiroFish was written against. This provider therefore uses Graphiti for
-real episode ingestion and fact search while keeping a small local JSON cache for
-node/edge listing that the existing MiroFish frontend expects.
+API that MiroFish was written against. This provider uses Graphiti/Neo4j as the
+source-of-truth runtime path and keeps a local compatibility cache only for
+MiroFish UI panels that still expect node/edge listing. Native Graphiti failures
+are surfaced as failures; the local cache is never used as a silent success path.
 """
 
 from __future__ import annotations
@@ -68,12 +69,16 @@ def _record_graphiti_event(
         "last_status": status,
         "last_checked_at": event["at"],
         "native_ingest_state": status_obj.get("native_ingest_state", "unknown"),
-        "fallback_cache_enabled": True,
+        "fallback_cache_enabled": False,
+        "compatibility_cache_enabled": True,
     })
     if operation == "messages":
         status_obj["native_ingest_state"] = "pass" if native_success else "blocked"
     if operation == "search":
-        status_obj["native_search_state"] = "pass" if native_success else "fallback"
+        if "failed" in status:
+            status_obj["native_search_state"] = "failed"
+        else:
+            status_obj["native_search_state"] = "pass" if native_success else "empty"
     if error:
         graph.setdefault("graphiti_errors", []).append({
             "at": event["at"],
@@ -114,6 +119,7 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
         graph = _load_graph(graph_id)
         # Persist ontology entity types as Graphiti entity nodes so search has
         # anchors even before async extraction finishes.
+        failures = []
         for node in graph.get("nodes", []):
             try:
                 _json_request("POST", "/entity-node", {
@@ -123,7 +129,16 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
                     "summary": node.get("summary", ""),
                 }, timeout=20.0)
             except Exception as exc:
-                logger.warning(f"Graphiti entity-node mirror failed for {node.get('name')}: {exc}")
+                failures.append(f"{node.get('name')}: {exc}")
+        if failures:
+            _record_graphiti_event(
+                graph_id,
+                "entity-node",
+                "native_entity_node_failed",
+                native_success=False,
+                error="; ".join(failures),
+            )
+            raise RuntimeError(f"Graphiti entity-node mirror failed for group {graph_id}: {'; '.join(failures)}")
 
     def add_text_batches(
         self,
@@ -132,9 +147,9 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
         batch_size: int = 3,
         progress_callback: Optional[Any] = None,
     ) -> List[str]:
-        episode_ids = super().add_text_batches(graph_id, chunks, batch_size, progress_callback)
         messages = []
-        for episode_id, chunk in zip(episode_ids, chunks):
+        for chunk in chunks:
+            episode_id = _slug_uuid("graphiti_episode")
             messages.append({
                 "uuid": episode_id,
                 "name": f"MiroFish seed episode {episode_id[-8:]}",
@@ -155,28 +170,25 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
                     details={"message_count": len(messages), "response": response},
                 )
             except Exception as exc:
-                # Keep Graphiti mode usable even when the selected local LLM endpoint
-                # cannot satisfy Graphiti's strict structured-output schemas. The
-                # local compatibility cache still contains episodes/nodes/edges/search
-                # so the MiroFish product flow can complete while the richer Graphiti
-                # extraction backend is tuned or swapped via env.
                 _record_graphiti_event(
                     graph_id,
                     "messages",
-                    "native_ingest_failed_using_fallback_cache",
+                    "native_ingest_failed",
                     native_success=False,
                     error=str(exc),
                     details={"message_count": len(messages)},
                 )
-                logger.warning(f"Graphiti message mirror failed; continuing with local compatibility cache: {exc}")
-        return episode_ids
+                raise RuntimeError(f"Graphiti native message ingest failed for group {graph_id}: {exc}") from exc
+        # Compatibility cache is populated only after native Graphiti accepts the batch.
+        return super().add_text_batches(graph_id, chunks, batch_size, progress_callback)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         graph = super().get_graph_data(graph_id)
         status_obj = graph.setdefault("graphiti_status", {})
         status_obj.setdefault("provider", "graphiti")
         status_obj.setdefault("base_url", _base_url())
-        status_obj.setdefault("fallback_cache_enabled", True)
+        status_obj.setdefault("fallback_cache_enabled", False)
+        status_obj.setdefault("compatibility_cache_enabled", True)
         status_obj.setdefault("native_ingest_state", "unknown")
         status_obj["compatibility_cache"] = {
             "node_count": len(graph.get("nodes", [])),
@@ -230,30 +242,27 @@ class GraphitiToolsService(LocalSimpleToolsService):
                     "invalid_at": row.get("invalid_at"),
                     "expired_at": row.get("expired_at"),
                 })
-            local = super().search_graph(graph_id, query, limit=limit, scope=scope)
-            merged_facts = (facts + local.facts)[:limit]
-            merged_edges = (edges + local.edges)[:limit]
+            local_nodes = super().get_all_nodes(graph_id)
             return SearchResult(
-                facts=merged_facts,
-                edges=merged_edges,
-                nodes=local.nodes,
+                facts=facts[:limit],
+                edges=edges[:limit],
+                nodes=[node.to_dict() for node in local_nodes],
                 query=query,
-                total_count=len(merged_facts),
+                total_count=len(facts[:limit]),
             )
         except Exception as exc:
-            logger.warning(f"Graphiti search failed; falling back to local cache: {exc}")
             try:
                 _record_graphiti_event(
                     graph_id,
                     "search",
-                    "native_search_failed_using_fallback_cache",
+                    "native_search_failed",
                     native_success=False,
                     error=str(exc),
                     details={"query": query, "limit": limit},
                 )
             except Exception:
                 pass
-            return super().search_graph(graph_id, query, limit=limit, scope=scope)
+            raise RuntimeError(f"Graphiti native search failed for group {graph_id}: {exc}") from exc
 
     def get_all_edges(self, graph_id: str, include_temporal: bool = True, include_expired: bool = True) -> List[EdgeInfo]:
         # Graphiti server currently exposes fact search but not full edge list in
@@ -263,7 +272,6 @@ class GraphitiToolsService(LocalSimpleToolsService):
 
 class GraphitiGraphMemoryUpdater(LocalSimpleGraphMemoryUpdater):
     def add_activity_from_dict(self, data: Dict[str, Any], platform: str) -> None:
-        super().add_activity_from_dict(data, platform)
         if "event_type" in data or data.get("action_type") == "DO_NOTHING":
             return
         content = data.get("action_args", {}).get("content") or data.get("content") or data.get("action_type", "")
@@ -279,7 +287,8 @@ class GraphitiGraphMemoryUpdater(LocalSimpleGraphMemoryUpdater):
         try:
             _json_request("POST", "/messages", {"group_id": self.graph_id, "messages": [message]}, timeout=30.0)
         except Exception as exc:
-            logger.warning(f"Graphiti action episode mirror failed: {exc}")
+            raise RuntimeError(f"Graphiti action episode ingest failed for group {self.graph_id}: {exc}") from exc
+        super().add_activity_from_dict(data, platform)
 
     def get_stats(self) -> Dict[str, Any]:
         stats = super().get_stats()
@@ -297,3 +306,5 @@ class GraphitiGraphMemoryManager(LocalSimpleGraphMemoryManager):
         updater.start()
         cls._updaters[simulation_id] = updater
         return updater
+
+

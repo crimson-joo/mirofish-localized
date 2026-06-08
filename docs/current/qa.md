@@ -7,9 +7,10 @@
 ## 현재 릴리즈에서 검증할 사용자 가치
 
 1. ZEP Cloud 없이 로컬 Docker Compose 기반으로 MiroFish 기본 흐름을 실행할 수 있다.
-2. Graphiti/Neo4j 로컬 그래프 메모리 경로가 연결되어 있다.
-3. Graphiti native / repair / fallback 상태를 혼동하지 않고 확인할 수 있다.
-4. GitHub Pages는 전체 앱 배포가 아니라 정적 체크포인트/문서 페이지임을 명확히 보여준다.
+2. Graphiti/Neo4j 로컬 그래프 메모리 경로가 기본 provider로 연결되어 있다.
+3. Graphiti native ingest/search 실패가 local_simple fallback으로 가려지지 않고 실패로 드러난다.
+4. 세션/그래프별 group_id 삭제 시 Graphiti group cleanup과 local compatibility cache cleanup이 함께 수행된다.
+5. GitHub Pages는 전체 앱 배포가 아니라 정적 체크포인트/문서 페이지임을 명확히 보여준다.
 
 ## 로컬 QA 기준
 

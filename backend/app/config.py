@@ -33,9 +33,10 @@ class Config:
     LLM_MODEL_NAME = os.environ.get('LLM_MODEL_NAME', 'gpt-4o-mini')
 
     # Graph memory / GraphRAG provider configuration
-    # zep: original Zep Cloud behavior
-    # local_simple: ZEP-free JSON/JSONL bootstrap backend for local Docker Compose
-    GRAPH_PROVIDER = os.environ.get('GRAPH_PROVIDER', 'zep').lower()
+    # graphiti: local Graphiti/Neo4j behavior (default)
+    # local_simple: explicit developer-only JSON/JSONL scaffold, never implicit fallback
+    # zep: original Zep Cloud behavior, requires ZEP_API_KEY
+    GRAPH_PROVIDER = os.environ.get('GRAPH_PROVIDER', 'graphiti').lower()
     GRAPH_MEMORY_BASE_URL = os.environ.get('GRAPH_MEMORY_BASE_URL')
     GRAPHITI_BASE_URL = os.environ.get('GRAPHITI_BASE_URL') or GRAPH_MEMORY_BASE_URL
     LOCAL_GRAPH_STORAGE_DIR = os.environ.get(
@@ -92,5 +93,8 @@ class Config:
             errors.append(f"GRAPH_PROVIDER 不支持: {cls.GRAPH_PROVIDER}")
         if cls.GRAPH_PROVIDER == "zep" and not cls.ZEP_API_KEY:
             errors.append("ZEP_API_KEY 未配置")
+        if cls.GRAPH_PROVIDER == "graphiti" and not cls.GRAPHITI_BASE_URL:
+            errors.append("GRAPHITI_BASE_URL 未配置")
         return errors
+
 
