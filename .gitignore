@@ -45,6 +45,7 @@ htmlcov/
 .cursor/
 .claude/
 .hermes/runs/
+canary-artifacts/
 
 # 文档与测试程序
 mydoc/
