@@ -131,7 +131,7 @@ local_simple fallback: REMOVED
 
 ## Multimodal / Ollama Gemma4
 
-현재 Step1~Step5의 GraphRAG/시뮬레이션/보고서 흐름은 텍스트와 이미지 입력을 함께 받을 수 있습니다. 이미지(`PNG/JPG/WEBP/GIF`)는 `MULTIMODAL_*` endpoint로 먼저 텍스트/차트 신호를 추출한 뒤 ontology/graph build 입력에 합쳐집니다.
+현재 Step1~Step5의 GraphRAG/시뮬레이션/보고서 흐름은 텍스트, 이미지 파일, 그리고 시각 요소가 들어간 PDF를 함께 받을 수 있습니다. 이미지(`PNG/JPG/WEBP/GIF`)와 PDF 안의 차트/그림/스캔 페이지는 `MULTIMODAL_*` endpoint로 먼저 텍스트/차트 신호를 추출한 뒤 ontology/graph build 입력에 합쳐집니다.
 
 ```text
 gemma4:12b-mlx
@@ -153,6 +153,16 @@ Docker 안의 Ollama
 ```text
 텍스트/PDF: PDF, MD, TXT
 이미지/차트: PNG, JPG, JPEG, WEBP, GIF
+PDF 내부 시각자료: 차트/그림/스캔 페이지를 페이지 이미지로 렌더링해 분석
+```
+
+PDF 시각 분석 조정:
+
+```text
+PDF_MULTIMODAL_ANALYSIS=true
+PDF_MULTIMODAL_MAX_PAGES=6
+PDF_MULTIMODAL_DPI=96
+MULTIMODAL_MAX_TOKENS=768
 ```
 
 ## Known limitations

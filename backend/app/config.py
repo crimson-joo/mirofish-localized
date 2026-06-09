@@ -52,6 +52,10 @@ class Config:
     MULTIMODAL_API_KEY = os.environ.get('MULTIMODAL_API_KEY')
     MULTIMODAL_BASE_URL = os.environ.get('MULTIMODAL_BASE_URL')
     MULTIMODAL_MODEL_NAME = os.environ.get('MULTIMODAL_MODEL_NAME')
+    PDF_MULTIMODAL_ANALYSIS = os.environ.get('PDF_MULTIMODAL_ANALYSIS', 'true').lower() == 'true'
+    PDF_MULTIMODAL_MAX_PAGES = int(os.environ.get('PDF_MULTIMODAL_MAX_PAGES', '6'))
+    PDF_MULTIMODAL_DPI = int(os.environ.get('PDF_MULTIMODAL_DPI', '96'))
+    MULTIMODAL_MAX_TOKENS = int(os.environ.get('MULTIMODAL_MAX_TOKENS', '768'))
 
     # Zep配置 (required only when GRAPH_PROVIDER=zep)
     ZEP_API_KEY = os.environ.get('ZEP_API_KEY')
