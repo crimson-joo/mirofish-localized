@@ -18,6 +18,7 @@ import fitz  # PyMuPDF
 import requests
 
 BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:5001"
+LOCALE = sys.argv[2] if len(sys.argv) > 2 else "ko"
 PROJECTS_DIR = Path(__file__).resolve().parents[1] / "backend" / "uploads" / "projects"
 
 
@@ -122,7 +123,14 @@ def create_cases(tmp: Path) -> list[dict]:
 
 
 def api_post(path: str, **kwargs):
-    response = requests.post(BASE + path, timeout=600, **kwargs)
+    headers = kwargs.pop("headers", {}) or {}
+    headers.setdefault("Accept-Language", LOCALE)
+    headers.setdefault("X-Locale", LOCALE)
+    if "json" in kwargs and isinstance(kwargs["json"], dict):
+        kwargs["json"].setdefault("locale", LOCALE)
+    if "data" in kwargs and isinstance(kwargs["data"], dict):
+        kwargs["data"].setdefault("locale", LOCALE)
+    response = requests.post(BASE + path, timeout=600, headers=headers, **kwargs)
     try:
         payload = response.json()
     except Exception:
@@ -133,7 +141,7 @@ def api_post(path: str, **kwargs):
 
 
 def api_get(path: str):
-    response = requests.get(BASE + path, timeout=60)
+    response = requests.get(BASE + path, timeout=60, headers={"Accept-Language": LOCALE, "X-Locale": LOCALE})
     payload = response.json()
     if response.status_code >= 400 or payload.get("success") is False:
         raise RuntimeError(f"GET {path} failed status={response.status_code} payload={json.dumps(payload, ensure_ascii=False)[:2000]}")
@@ -188,7 +196,7 @@ def build_graph(project_id: str, name: str) -> dict:
 
 
 def main() -> int:
-    health = requests.get(BASE + "/health", timeout=20)
+    health = requests.get(BASE + "/health", timeout=20, headers={"Accept-Language": LOCALE, "X-Locale": LOCALE})
     health.raise_for_status()
     results = []
     with tempfile.TemporaryDirectory(prefix="mirofish_pdf_mm_e2e_") as tmp_raw:

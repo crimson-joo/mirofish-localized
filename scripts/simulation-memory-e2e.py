@@ -17,17 +17,21 @@ from pathlib import Path
 BASE = sys.argv[1].rstrip("/") if len(sys.argv) > 1 else "http://127.0.0.1:5001"
 PROJECT_ID = sys.argv[2] if len(sys.argv) > 2 else "proj_1b4e40c584ff"
 GRAPH_ID = sys.argv[3] if len(sys.argv) > 3 else "local_mirofish_725a524065d34168"
+LOCALE = sys.argv[4] if len(sys.argv) > 4 else "ko"
 RUNS_DIR = Path(__file__).resolve().parents[1] / "backend" / "uploads" / "simulations"
 GRAPH_DIR = Path(__file__).resolve().parents[1] / "backend" / "uploads" / "local_graphs"
 
 
 def request(method: str, path: str, payload: dict | None = None, timeout: int = 300) -> dict:
+    payload = dict(payload) if payload is not None else None
+    if payload is not None:
+        payload.setdefault("locale", LOCALE)
     data = json.dumps(payload).encode("utf-8") if payload is not None else None
     req = urllib.request.Request(
         BASE + path,
         data=data,
         method=method,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "Accept-Language": LOCALE, "X-Locale": LOCALE},
     )
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:

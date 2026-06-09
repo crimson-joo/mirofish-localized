@@ -13,7 +13,9 @@ const service = axios.create({
 // 请求拦截器
 service.interceptors.request.use(
   config => {
-    config.headers['Accept-Language'] = i18n.global.locale.value
+    const currentLocale = i18n.global.locale.value
+    config.headers['Accept-Language'] = currentLocale
+    config.headers['X-Locale'] = currentLocale
     return config
   },
   error => {

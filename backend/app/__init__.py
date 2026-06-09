@@ -51,6 +51,8 @@ def create_app(config_class=Config):
     # 请求日志中间件
     @app.before_request
     def log_request():
+        from .utils.locale import get_locale, set_locale
+        set_locale(get_locale())
         logger = get_logger('mirofish.request')
         logger.debug(f"请求: {request.method} {request.path}")
         if request.content_type and 'json' in request.content_type:
