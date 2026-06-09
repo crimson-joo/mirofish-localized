@@ -195,7 +195,7 @@ class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
                         "POST",
                         "/messages",
                         {"group_id": graph_id, "messages": [message]},
-                        timeout=90.0,
+                        timeout=180.0,
                     )
                     native_count, repaired_count, failed_count = _message_ingest_counts(response)
                     native_total += native_count
