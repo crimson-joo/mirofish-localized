@@ -1,5 +1,5 @@
 """
-Local Simple graph memory provider.
+Graphiti Projection graph memory provider.
 
 This provider is intentionally small: it gives mirofish-localized a ZEP-free
 runtime path that stores graph nodes, edges, episodes, and simulation actions on
@@ -31,7 +31,7 @@ from .zep_tools import (
     SearchResult,
 )
 
-logger = get_logger("mirofish.local_simple_graph")
+logger = get_logger("mirofish.graphiti_projection_cache")
 
 
 def _now() -> str:
@@ -116,7 +116,7 @@ def _normalize_query(query: str) -> List[str]:
     return [part.lower() for part in (query or "").replace("_", " ").split() if part.strip()]
 
 
-class LocalSimpleGraphBuilder:
+class GraphitiProjectionGraphBuilder:
     """ZEP-compatible enough graph builder using local JSON/JSONL storage."""
 
     def create_graph(self, name: str) -> str:
@@ -124,7 +124,7 @@ class LocalSimpleGraphBuilder:
         graph = {
             "graph_id": graph_id,
             "name": name,
-            "description": "Local Simple MiroFish graph",
+            "description": "Graphiti Projection MiroFish graph",
             "nodes": [],
             "edges": [],
             "node_count": 0,
@@ -150,7 +150,7 @@ class LocalSimpleGraphBuilder:
                 "labels": ["Entity", name],
                 "summary": entity_def.get("description") or f"Local entity type {name}",
                 "attributes": {
-                    "source": "local_simple_ontology",
+                    "source": "graphiti_projection_ontology",
                     "entity_type": name,
                     "ontology_attributes": entity_def.get("attributes", []),
                 },
@@ -175,7 +175,7 @@ class LocalSimpleGraphBuilder:
                     "target_node_uuid": target["uuid"],
                     "source_node_name": source["name"],
                     "target_node_name": target["name"],
-                    "attributes": {"source": "local_simple_ontology"},
+                    "attributes": {"source": "graphiti_projection_ontology"},
                     "created_at": _now(),
                     "valid_at": _now(),
                     "invalid_at": None,
@@ -223,7 +223,7 @@ class LocalSimpleGraphBuilder:
                     "target_node_uuid": target["uuid"],
                     "source_node_name": source["name"],
                     "target_node_name": target["name"],
-                    "attributes": {"source": "local_simple_episode", "episode_id": episode_id},
+                    "attributes": {"source": "graphiti_projection_episode", "episode_id": episode_id},
                     "created_at": _now(),
                     "valid_at": _now(),
                     "invalid_at": None,
@@ -237,7 +237,7 @@ class LocalSimpleGraphBuilder:
 
     def _wait_for_episodes(self, episode_uuids: List[str], progress_callback: Optional[Any] = None) -> None:
         if progress_callback:
-            progress_callback("Local Simple graph processing complete", 1.0)
+            progress_callback("Graphiti Projection graph processing complete", 1.0)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
         graph = _load_graph(graph_id)
@@ -252,7 +252,7 @@ class LocalSimpleGraphBuilder:
             shutil.rmtree(path)
 
 
-class LocalSimpleEntityReader:
+class GraphitiProjectionEntityReader:
     def get_all_nodes(self, graph_id: str) -> List[Dict[str, Any]]:
         try:
             return list(_load_graph(graph_id).get("nodes", []))
@@ -337,11 +337,11 @@ class LocalSimpleEntityReader:
         return self.filter_defined_entities(graph_id, [entity_type], enrich_with_edges).entities
 
 
-class LocalSimpleToolsService:
+class GraphitiProjectionToolsService:
     """ReportAgent-compatible tools backed by local graph JSON."""
 
     def __init__(self, llm_client: Optional[Any] = None):
-        self.reader = LocalSimpleEntityReader()
+        self.reader = GraphitiProjectionEntityReader()
 
     def _nodes(self, graph_id: str) -> List[NodeInfo]:
         return [NodeInfo(
@@ -435,7 +435,7 @@ class LocalSimpleToolsService:
             "total_edges": len(edges),
             "entity_types": entity_types,
             "relation_types": relation_types,
-            "provider": "local_simple",
+            "provider": "graphiti_projection",
         }
 
     def get_simulation_context(self, graph_id: str, simulation_requirement: str, limit: int = 30) -> Dict[str, Any]:
@@ -447,7 +447,7 @@ class LocalSimpleToolsService:
             "graph_statistics": stats,
             "entities": result.nodes,
             "total_entities": stats["total_nodes"],
-            "provider": "local_simple",
+            "provider": "graphiti_projection",
         }
 
     def insight_forge(
@@ -499,26 +499,26 @@ class LocalSimpleToolsService:
     ) -> InterviewResult:
         question = (custom_questions or [interview_requirement or simulation_requirement or "What is your view?"])[0]
         interview = AgentInterview(
-            agent_name="local_simple_agent",
-            agent_role="Local Simple Stub",
+            agent_name="graphiti_projection_agent",
+            agent_role="Graphiti Projection Stub",
             agent_bio="A placeholder interviewee generated before a live OASIS/Graphiti runtime is connected.",
             question=question,
-            response="Local Simple mode preserves the interaction flow without ZEP. Connect Graphiti/Graphifi and live simulation runtime for real agent interviews.",
-            key_quotes=["Local Simple mode is a bootstrap backend, not the final GraphRAG engine."],
+            response="Graphiti Projection mode preserves the interaction flow without ZEP. Connect Graphiti/Graphifi and live simulation runtime for real agent interviews.",
+            key_quotes=["Graphiti Projection mode is a bootstrap backend, not the final GraphRAG engine."],
         )
         return InterviewResult(
             interview_topic=interview_requirement,
             interview_questions=[question],
             selected_agents=[{"name": interview.agent_name, "role": interview.agent_role}],
             interviews=[interview],
-            selection_reasoning="Local Simple provider returns a safe stub interview until live agents are available.",
+            selection_reasoning="Graphiti Projection provider returns a safe stub interview until live agents are available.",
             summary=interview.response,
             total_agents=1,
             interviewed_count=1,
         )
 
 
-class LocalSimpleGraphMemoryUpdater:
+class GraphitiProjectionGraphMemoryUpdater:
     def __init__(self, graph_id: str):
         self.graph_id = graph_id
         self._running = False
@@ -555,7 +555,7 @@ class LocalSimpleGraphMemoryUpdater:
                         "target_node_uuid": target["uuid"],
                         "source_node_name": source["name"],
                         "target_node_name": target["name"],
-                        "attributes": {"source": "local_simple_simulation_action"},
+                        "attributes": {"source": "graphiti_projection_simulation_action"},
                         "created_at": _now(),
                         "valid_at": _now(),
                         "invalid_at": None,
@@ -572,22 +572,22 @@ class LocalSimpleGraphMemoryUpdater:
             "batches_sent": self._total_activities,
             "items_sent": self._total_activities,
             "failed": 0,
-            "provider": "local_simple",
+            "provider": "graphiti_projection",
         }
 
 
-class LocalSimpleGraphMemoryManager:
-    _updaters: Dict[str, LocalSimpleGraphMemoryUpdater] = {}
+class GraphitiProjectionGraphMemoryManager:
+    _updaters: Dict[str, GraphitiProjectionGraphMemoryUpdater] = {}
 
     @classmethod
-    def create_updater(cls, simulation_id: str, graph_id: str) -> LocalSimpleGraphMemoryUpdater:
-        updater = LocalSimpleGraphMemoryUpdater(graph_id)
+    def create_updater(cls, simulation_id: str, graph_id: str) -> GraphitiProjectionGraphMemoryUpdater:
+        updater = GraphitiProjectionGraphMemoryUpdater(graph_id)
         updater.start()
         cls._updaters[simulation_id] = updater
         return updater
 
     @classmethod
-    def get_updater(cls, simulation_id: str) -> Optional[LocalSimpleGraphMemoryUpdater]:
+    def get_updater(cls, simulation_id: str) -> Optional[GraphitiProjectionGraphMemoryUpdater]:
         return cls._updaters.get(simulation_id)
 
     @classmethod

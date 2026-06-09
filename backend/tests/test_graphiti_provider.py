@@ -92,8 +92,7 @@ class GraphitiProviderTest(unittest.TestCase):
         graph_data = get_graph_builder().get_graph_data(graph_id)
         self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "pass")
         self.assertEqual(graph_data["graphiti_status"]["native_search_state"], "pass")
-        self.assertFalse(graph_data["graphiti_status"]["fallback_cache_enabled"])
-        self.assertTrue(graph_data["graphiti_status"]["compatibility_cache_enabled"])
+        self.assertTrue(graph_data["graphiti_status"]["projection_cache_enabled"])
 
     def test_graphiti_provider_fails_closed_when_native_messages_fail(self):
         from app.services.graph_provider import get_graph_builder, get_graph_tools
@@ -121,7 +120,7 @@ class GraphitiProviderTest(unittest.TestCase):
 
             graph_data = builder.get_graph_data(graph_id)
             self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "failed")
-            self.assertFalse(graph_data["graphiti_status"]["fallback_cache_enabled"])
+            self.assertTrue(graph_data["graphiti_status"]["projection_cache_enabled"])
             self.assertTrue(graph_data["graphiti_errors"])
             self.assertEqual(graph_data["native_graph_memory_state"], "failed")
 
@@ -156,7 +155,7 @@ class GraphitiProviderTest(unittest.TestCase):
 
             graph_data = builder.get_graph_data(graph_id)
             self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "repaired")
-            self.assertFalse(graph_data["graphiti_status"]["fallback_cache_enabled"])
+            self.assertTrue(graph_data["graphiti_status"]["projection_cache_enabled"])
             self.assertEqual(graph_data["native_graph_memory_state"], "repaired")
         finally:
             _GraphitiStub.do_POST = original_do_post

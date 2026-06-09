@@ -2,9 +2,9 @@
 
 The upstream Graphiti FastAPI server does not expose the exact Zep Cloud graph
 API that MiroFish was written against. This provider uses Graphiti/Neo4j as the
-source-of-truth runtime path and keeps a local compatibility cache only for
+source-of-truth runtime path and keeps an internal projection cache only for
 MiroFish UI panels that still expect node/edge listing. Native Graphiti failures
-are surfaced as failures; the local cache is never used as a silent success path.
+are surfaced as failures; the projection cache is never used as a silent success path.
 """
 
 from __future__ import annotations
@@ -18,12 +18,12 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from ..config import Config
 from ..utils.logger import get_logger
-from .local_simple_graph import (
-    LocalSimpleEntityReader,
-    LocalSimpleGraphBuilder,
-    LocalSimpleGraphMemoryManager,
-    LocalSimpleGraphMemoryUpdater,
-    LocalSimpleToolsService,
+from .graphiti_projection_cache import (
+    GraphitiProjectionEntityReader,
+    GraphitiProjectionGraphBuilder,
+    GraphitiProjectionGraphMemoryManager,
+    GraphitiProjectionGraphMemoryUpdater,
+    GraphitiProjectionToolsService,
     _graph_dir,
     _load_graph,
     _now,
@@ -70,8 +70,7 @@ def _record_graphiti_event(
         "last_status": status,
         "last_checked_at": event["at"],
         "native_ingest_state": status_obj.get("native_ingest_state", "unknown"),
-        "fallback_cache_enabled": False,
-        "compatibility_cache_enabled": True,
+        "projection_cache_enabled": True,
     })
     if operation == "messages":
         ingest_state = (details or {}).get("native_ingest_state")
@@ -129,7 +128,7 @@ def _ingest_state(native_count: int, repaired_count: int, failed_count: int) -> 
     return "unknown"
 
 
-class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
+class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
     """Graph builder that mirrors MiroFish graph operations to Graphiti."""
 
     def create_graph(self, name: str) -> str:
@@ -248,10 +247,9 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
         status_obj = graph.setdefault("graphiti_status", {})
         status_obj.setdefault("provider", "graphiti")
         status_obj.setdefault("base_url", _base_url())
-        status_obj.setdefault("fallback_cache_enabled", False)
-        status_obj.setdefault("compatibility_cache_enabled", True)
+        status_obj.setdefault("projection_cache_enabled", True)
         status_obj.setdefault("native_ingest_state", "unknown")
-        status_obj["compatibility_cache"] = {
+        status_obj["projection_cache"] = {
             "node_count": len(graph.get("nodes", [])),
             "edge_count": len(graph.get("edges", [])),
             "episode_count": len(graph.get("episodes", [])),
@@ -263,15 +261,15 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
         try:
             _json_request("DELETE", f"/group/{graph_id}", timeout=60.0)
         except Exception as exc:
-            logger.warning(f"Graphiti group delete failed for {graph_id}; deleting local cache anyway: {exc}")
+            logger.warning(f"Graphiti group delete failed for {graph_id}; deleting projection cache anyway: {exc}")
         super().delete_graph(graph_id)
 
 
-class GraphitiEntityReader(LocalSimpleEntityReader):
-    """Graphiti node/edge listing backed by local MiroFish compatibility cache."""
+class GraphitiEntityReader(GraphitiProjectionEntityReader):
+    """Graphiti node/edge listing backed by Graphiti projection cache."""
 
 
-class GraphitiToolsService(LocalSimpleToolsService):
+class GraphitiToolsService(GraphitiProjectionToolsService):
     def search_graph(self, graph_id: str, query: str, limit: int = 10, scope: str = "edges") -> SearchResult:
         try:
             response = _json_request("POST", "/search", {
@@ -285,7 +283,7 @@ class GraphitiToolsService(LocalSimpleToolsService):
             _record_graphiti_event(
                 graph_id,
                 "search",
-                "native_search_pass" if native_success else "native_search_empty_using_fallback_cache",
+                "native_search_pass" if native_success else "native_search_empty",
                 native_success=native_success,
                 details={"query": query, "native_fact_count": len(facts), "limit": limit},
             )
@@ -327,11 +325,11 @@ class GraphitiToolsService(LocalSimpleToolsService):
 
     def get_all_edges(self, graph_id: str, include_temporal: bool = True, include_expired: bool = True) -> List[EdgeInfo]:
         # Graphiti server currently exposes fact search but not full edge list in
-        # the server API, so MiroFish graph panels use the local compatibility cache.
+        # the server API, so MiroFish graph panels use the projection cache.
         return super().get_all_edges(graph_id, include_temporal=include_temporal, include_expired=include_expired)
 
 
-class GraphitiGraphMemoryUpdater(LocalSimpleGraphMemoryUpdater):
+class GraphitiGraphMemoryUpdater(GraphitiProjectionGraphMemoryUpdater):
     def add_activity_from_dict(self, data: Dict[str, Any], platform: str) -> None:
         if "event_type" in data or data.get("action_type") == "DO_NOTHING":
             return
@@ -358,7 +356,7 @@ class GraphitiGraphMemoryUpdater(LocalSimpleGraphMemoryUpdater):
         return stats
 
 
-class GraphitiGraphMemoryManager(LocalSimpleGraphMemoryManager):
+class GraphitiGraphMemoryManager(GraphitiProjectionGraphMemoryManager):
     _updaters: Dict[str, GraphitiGraphMemoryUpdater] = {}
 
     @classmethod

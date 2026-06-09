@@ -61,12 +61,12 @@ with urllib.request.urlopen(base + '/api/graph/data/' + graph_id, timeout=15) as
     graph_payload = json.loads(r.read().decode())
 data = graph_payload.get('data') or {}
 status = data.get('graphiti_status') or {}
-required = ['provider', 'base_url', 'fallback_cache_enabled', 'native_ingest_state']
+required = ['provider', 'base_url', 'projection_cache_enabled', 'native_ingest_state']
 missing = [k for k in required if k not in status]
 if missing:
     print(f'FAIL graph_data_status missing {missing}')
     sys.exit(1)
-print(f"PASS graph_data_status graph_id={graph_id} native={status.get('native_ingest_state')} fallback={status.get('fallback_cache_enabled')}")
+print(f"PASS graph_data_status graph_id={graph_id} native={status.get('native_ingest_state')} projection={status.get('projection_cache_enabled')}")
 
 with urllib.request.urlopen(base + '/api/simulation/history?limit=1', timeout=15) as r:
     history = json.loads(r.read().decode())

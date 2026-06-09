@@ -99,7 +99,7 @@ RUN_MINI_BUILD=1 ./scripts/local-smoke.sh
      - `provider`
      - `native_ingest_state`
      - `native_search_state`
-     - `fallback_cache_enabled`
+     - `projection_cache_enabled`
      - `product_flow_state`
 
 ## Graphiti native vs fallback
