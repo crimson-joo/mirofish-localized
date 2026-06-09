@@ -2,13 +2,13 @@
 
 ## 목표
 
-이 문서는 1차 완성본(Local Demo MVP)을 로컬에서 재현하는 절차입니다.
+이 문서는 ZEP Cloud 없이 Docker Compose 로컬 스택으로 MiroFish를 재현하는 절차입니다.
 
-1차 완성본의 기준은 **Graphiti native extraction 100%**가 아니라 다음입니다.
+현재 기준은 다음입니다.
 
 ```text
-Zep Cloud 없이 Docker Compose 로컬 스택으로 MiroFish Step1~Step5 제품 흐름을 실행하고,
-Graphiti native/fallback 상태를 API/UI/문서에서 투명하게 확인한다.
+MiroFish Step1~Step5 제품 흐름을 로컬에서 실행하고,
+Graphiti native ingest/search가 pass 상태로 동작하는지 API/UI/문서에서 확인한다.
 ```
 
 ## 구성
@@ -59,10 +59,10 @@ PASS report_list 200
 PASS graph_data_status ...
 ```
 
-기본 smoke는 Graphiti native/repaired fact smoke도 실행합니다. 이 검증은 MiroFish compatibility cache를 우회해서 Graphiti service 자체 `/messages` → `/search`가 searchable fact를 만들 수 있는지 확인합니다.
+기본 smoke는 Graphiti native fact smoke도 실행합니다. 이 검증은 MiroFish projection cache를 우회해서 Graphiti service 자체 `/messages` → `/search`가 searchable fact를 만들 수 있는지 확인합니다.
 
 ```text
-PASS messages {'message': 'Messages processed synchronously; native=0, repaired=1', 'success': True}
+PASS messages {'message': 'Messages processed synchronously; native=1, repaired=0', 'success': True}
 PASS native_search facts=1 ...
 ```
 
@@ -107,36 +107,32 @@ RUN_MINI_BUILD=1 ./scripts/local-smoke.sh
 현재 provider는 두 층으로 동작합니다.
 
 ```text
-1. Graphiti native mirror
+1. Graphiti native source of truth
    - /messages ingest
    - /search native fact retrieval
+   - Neo4j 저장
 
-2. MiroFish compatibility cache
-   - 기존 frontend/backend가 기대하는 nodes/edges/search 형태 유지
-   - native Graphiti extraction 실패 시에도 제품 흐름 유지
-
-3. Native repair adapter
-   - Graphiti strict structured-output extraction이 실패하면 patched `/messages` router가 conservative fact edge를 Graphiti/Neo4j에 직접 저장
-   - 이 경로는 full LLM entity extraction은 아니지만, compatibility cache를 우회하는 Graphiti-native searchable fact를 보장
+2. Graphiti projection cache
+   - 기존 frontend/backend가 기대하는 nodes/edges/search 형태의 UI read-model
+   - Graphiti 실패를 성공으로 바꾸는 fallback provider가 아님
 ```
 
-따라서 보고/판정은 항상 분리합니다.
+판정은 항상 분리합니다.
 
 ```text
 Product flow: PASS
-Graphiti infrastructure: PASS
-Graphiti native ingest: PASS | BLOCKED | UNKNOWN
-Graphiti native search: PASS | FALLBACK | UNKNOWN
-Fallback cache: ENABLED
+Graphiti native ingest: PASS | REPAIRED | FAILED
+Graphiti native search: PASS | FAILED | UNKNOWN
+Projection cache: ENABLED | DISABLED
+local_simple fallback: REMOVED
 ```
 
 ## Known limitations
 
-- Graphiti native `/messages`의 full LLM entity extraction은 local LLM endpoint의 strict structured-output 호환성에 따라 실패할 수 있습니다.
-- 이 경우 patched native repair adapter가 Graphiti/Neo4j에 conservative searchable fact를 직접 저장합니다. 따라서 Graphiti-native `/search` smoke는 통과할 수 있지만, 이것을 “완전한 LLM 기반 entity/edge extraction”으로 보지는 않습니다.
-- Local Demo MVP는 compatibility cache로 Step1~Step5 제품 흐름도 계속 통과합니다.
-- public tunnel/cloud demo, multi-user production security, million-agent production scale은 1차 완성본 범위가 아닙니다.
-- Graphiti native extraction 완전 안정화는 2차 milestone입니다. 이번 hardening에서는 Graphiti 전용 model/small_model env와 strict native-only smoke gate를 추가해, repair adapter에 기대지 않는 full extraction 상태를 분리 판정합니다.
+- 현재 기본 local endpoint에서는 structured-output normalization을 통해 strict native smoke가 `native>=1, repaired=0` 기준으로 통과해야 합니다.
+- 다른 사용자가 다른 OpenAI-compatible 모델을 붙일 경우, 먼저 `GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py`로 native ingest/search를 검증합니다.
+- 모델이 strict structured-output을 계속 깨면 `GRAPH_MEMORY_MODEL_NAME` 또는 `GRAPH_MEMORY_SMALL_MODEL_NAME`을 더 강한 structured-output 모델로 분리 지정합니다.
+- public tunnel/cloud demo, multi-user production security, million-agent production scale은 1차 로컬 재현 범위가 아닙니다.
 
 ## Troubleshooting
 

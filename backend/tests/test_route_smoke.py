@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 class RouteSmokeTest(unittest.TestCase):
@@ -37,6 +38,21 @@ class RouteSmokeTest(unittest.TestCase):
         self.assertTrue(payload["success"])
         self.assertIn("data", payload)
         self.assertIn("count", payload)
+
+    def test_graph_tasks_route_handles_dict_tasks(self):
+        persisted_task = {
+            "task_id": "task_dict",
+            "task_type": "report_generate",
+            "status": "processing",
+        }
+        with patch("app.api.graph.TaskManager") as task_manager_cls:
+            task_manager_cls.return_value.list_tasks.return_value = [persisted_task]
+            response = self.client.get("/api/graph/tasks")
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["success"])
+        self.assertEqual(payload["data"], [persisted_task])
 
     def test_graph_data_route_exposes_runtime_shape(self):
         from app.services.graphiti_projection_cache import GraphitiProjectionGraphBuilder
