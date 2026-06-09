@@ -288,7 +288,12 @@
     "errorOccurred": "오류가 발생했습니다: {error}",
     "noResponse": "응답 없음",
     "requestFailed": "요청 실패",
-    "selectAgentFirst": "먼저 시뮬레이션 개인을 선택하세요"
+    "selectAgentFirst": "먼저 시뮬레이션 개인을 선택하세요",
+    "predictionReport": "예측 보고서",
+    "waitingForReportAgent": "보고서 AI를 기다리는 중...",
+    "senderYou": "나",
+    "senderReportAgent": "보고서 AI",
+    "senderAgent": "AI 참가자"
   },
   "graph": {
     "panelTitle": "그래프 관계 시각화",

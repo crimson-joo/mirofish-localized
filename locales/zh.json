@@ -256,13 +256,13 @@
     "world2": "世界2"
   },
   "step5": {
-    "interactiveTools": "Interactive Tools",
-    "agentsAvailable": "{count} agents available",
-    "chatWithReportAgent": "与Report Agent对话",
+    "interactiveTools": "互动工具",
+    "agentsAvailable": "可用 AI 参与者 {count} 个",
+    "chatWithReportAgent": "与报告 AI 对话",
     "chatWithAgent": "与世界中任意个体对话",
     "selectChatTarget": "选择对话对象",
     "sendSurvey": "发送问卷调查到世界中",
-    "reportAgentChat": "Report Agent - Chat",
+    "reportAgentChat": "报告 AI - 对话",
     "reportAgentDesc": "报告生成智能体的快速对话版本，可调用 4 种专业工具，拥有MiroFish的完整记忆",
     "toolInsightForge": "InsightForge 深度归因",
     "toolInsightForgeDesc": "对齐现实世界种子数据与模拟环境状态，结合Global/Local Memory机制，提供跨时空的深度归因分析",
@@ -288,10 +288,15 @@
     "errorOccurred": "抱歉，发生了错误: {error}",
     "noResponse": "无响应",
     "requestFailed": "请求失败",
-    "selectAgentFirst": "请先选择一个模拟个体"
+    "selectAgentFirst": "请先选择一个模拟个体",
+    "predictionReport": "预测报告",
+    "waitingForReportAgent": "正在等待报告 AI...",
+    "senderYou": "你",
+    "senderReportAgent": "报告 AI",
+    "senderAgent": "AI 参与者"
   },
   "graph": {
-    "panelTitle": "Graph Relationship Visualization",
+    "panelTitle": "图谱关系可视化",
     "refreshGraph": "刷新图谱",
     "graphMemoryRealtime": "GraphRAG长短期记忆实时更新中",
     "realtimeUpdating": "实时更新中...",
