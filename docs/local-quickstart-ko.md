@@ -131,7 +131,7 @@ local_simple fallback: REMOVED
 
 ## Multimodal / Ollama Gemma4
 
-현재 Step1~Step5의 GraphRAG/시뮬레이션/보고서 흐름은 텍스트 기반입니다. `MULTIMODAL_*` 값은 향후 PDF 이미지, 차트, 스크린샷 분석 입력을 붙이기 위한 endpoint 설정입니다.
+현재 Step1~Step5의 GraphRAG/시뮬레이션/보고서 흐름은 텍스트와 이미지 입력을 함께 받을 수 있습니다. 이미지(`PNG/JPG/WEBP/GIF`)는 `MULTIMODAL_*` endpoint로 먼저 텍스트/차트 신호를 추출한 뒤 ontology/graph build 입력에 합쳐집니다.
 
 ```text
 gemma4:12b-mlx
@@ -145,6 +145,15 @@ Docker 안의 Ollama
 ```
 
 주의: 멀티모달 LLM은 이미지 이해/요약/OCR-like 질의는 할 수 있지만, 전용 OCR 엔진이나 문서 레이아웃 파서와 완전히 같은 역할은 아닙니다. 정확한 표 추출, 좌표 기반 OCR, 대량 PDF 파싱이 필요해지면 OCR/문서 파서 + multimodal LLM을 함께 붙이는 구조가 더 안정적입니다.
+
+리소스 기준: 선택지 A를 기본으로 사용하므로 Docker Compose는 Ollama 컨테이너를 기본으로 띄우지 않습니다. `--profile ollama`는 Linux 컨테이너 Ollama가 정말 필요할 때만 사용하세요.
+
+업로드 지원 형식:
+
+```text
+텍스트/PDF: PDF, MD, TXT
+이미지/차트: PNG, JPG, JPEG, WEBP, GIF
+```
 
 ## Known limitations
 
