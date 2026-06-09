@@ -352,7 +352,8 @@
     "step4Short": "报告",
     "step5Short": "对话",
     "statusRepaired": "已修复处理",
-    "statusFailed": "失败"
+    "statusFailed": "失败",
+    "projectionCache": "投影缓存"
   },
   "api": {
     "projectNotFound": "项目不存在: {id}",

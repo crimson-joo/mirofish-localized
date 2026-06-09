@@ -155,9 +155,9 @@
                     <span>{{ $t('history.graphitiDirect') }}</span>
                     <strong>{{ nativeExtractionLabel }}</strong>
                   </div>
-                  <div class="runtime-verdict" :class="fallbackVerdictClass">
-                    <span>{{ $t('history.fallbackMode') }}</span>
-                    <strong>{{ fallbackVerdictLabel }}</strong>
+                  <div class="runtime-verdict" :class="projectionVerdictClass">
+                    <span>{{ $t('history.projectionCache') }}</span>
+                    <strong>{{ projectionVerdictLabel }}</strong>
                   </div>
                 </div>
                 <div class="runtime-grid">
@@ -177,7 +177,7 @@
                   <span class="graphiti-badge">{{ $t('history.provider') }}: {{ graphitiStatus.provider || selectedProject.provider || $t('common.unknown') }}</span>
                   <span class="graphiti-badge" :class="graphitiNativeClass">{{ $t('history.graphitiIngest') }}: {{ formatRuntimeState(graphitiStatus.native_ingest_state) }}</span>
                   <span class="graphiti-badge" :class="graphitiSearchClass">{{ $t('history.graphitiSearch') }}: {{ formatRuntimeState(graphitiStatus.native_search_state) }}</span>
-                  <span class="graphiti-badge">{{ $t('history.fallbackCache') }}: {{ graphitiStatus.fallback_cache_enabled === true ? $t('history.enabled') : $t('common.unknown') }}</span>
+                  <span class="graphiti-badge">{{ $t('history.projectionCache') }}: {{ graphitiStatus.projection_cache_enabled === true ? $t('history.enabled') : $t('common.unknown') }}</span>
                 </div>
                 <div v-if="graphDetailLoading" class="runtime-hint">{{ $t('history.runtimeLoading') }}</div>
                 <div v-else-if="graphDetailError" class="runtime-hint blocked">{{ graphDetailError }}</div>
@@ -320,8 +320,8 @@ const nativeExtractionLabel = computed(() => {
   return t('common.unknown')
 })
 
-const fallbackVerdictLabel = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? t('history.enabled') : t('common.unknown'))
-const fallbackVerdictClass = computed(() => graphitiStatus.value.fallback_cache_enabled === true ? 'partial' : 'blocked')
+const projectionVerdictLabel = computed(() => graphitiStatus.value.projection_cache_enabled === true ? t('history.enabled') : t('common.unknown'))
+const projectionVerdictClass = computed(() => graphitiStatus.value.projection_cache_enabled === true ? 'pass' : 'blocked')
 
 const runtimeStateFor = (project) => {
   if (project?.report_id) return 'pass'

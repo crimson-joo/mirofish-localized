@@ -94,8 +94,6 @@ def generate_report():
             }), 404
         
         graph_id = state.graph_id or project.graph_id
-        if not graph_id and Config.GRAPH_PROVIDER == 'local_simple':
-            graph_id = f"local_simple:{simulation_id}"
         if not graph_id:
             return jsonify({
                 "success": False,
@@ -536,8 +534,6 @@ def chat_with_report_agent():
             }), 404
         
         graph_id = state.graph_id or project.graph_id
-        if not graph_id and Config.GRAPH_PROVIDER == 'local_simple':
-            graph_id = f"local_simple:{simulation_id}"
         if not graph_id:
             return jsonify({
                 "success": False,

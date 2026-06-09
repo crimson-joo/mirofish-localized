@@ -34,8 +34,8 @@ class Config:
 
     # Graph memory / GraphRAG provider configuration
     # graphiti: local Graphiti/Neo4j behavior (default)
-    # local_simple: explicit developer-only JSON/JSONL scaffold, never implicit fallback
     # zep: original Zep Cloud behavior, requires ZEP_API_KEY
+    # The former local_simple runtime is removed; Graphiti projection cache is internal only.
     GRAPH_PROVIDER = os.environ.get('GRAPH_PROVIDER', 'graphiti').lower()
     GRAPH_MEMORY_BASE_URL = os.environ.get('GRAPH_MEMORY_BASE_URL')
     GRAPHITI_BASE_URL = os.environ.get('GRAPHITI_BASE_URL') or GRAPH_MEMORY_BASE_URL
@@ -89,7 +89,7 @@ class Config:
         errors: list[str] = []
         if not cls.LLM_API_KEY:
             errors.append("LLM_API_KEY 未配置")
-        if cls.GRAPH_PROVIDER not in {"zep", "local_simple", "graphiti"}:
+        if cls.GRAPH_PROVIDER not in {"zep", "graphiti"}:
             errors.append(f"GRAPH_PROVIDER 不支持: {cls.GRAPH_PROVIDER}")
         if cls.GRAPH_PROVIDER == "zep" and not cls.ZEP_API_KEY:
             errors.append("ZEP_API_KEY 未配置")

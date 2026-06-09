@@ -3,31 +3,36 @@ import tempfile
 import unittest
 
 
-class LocalSimpleProviderTest(unittest.TestCase):
+class GraphitiProjectionCacheTest(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
-        os.environ["GRAPH_PROVIDER"] = "local_simple"
         os.environ["LLM_API_KEY"] = "dummy"
-        os.environ.pop("ZEP_API_KEY", None)
         os.environ["LOCAL_GRAPH_STORAGE_DIR"] = self.tmpdir.name
+
+        from app.config import Config
+        Config.GRAPH_PROVIDER = "graphiti"
+        Config.LLM_API_KEY = "dummy"
+        Config.LOCAL_GRAPH_STORAGE_DIR = self.tmpdir.name
+        Config.ZEP_API_KEY = None
 
     def tearDown(self):
         self.tmpdir.cleanup()
 
-    def test_config_does_not_require_zep_key_in_local_simple_mode(self):
+    def test_local_simple_provider_is_no_longer_supported(self):
         from app.config import Config
 
-        Config.GRAPH_PROVIDER = "local_simple"
-        Config.LLM_API_KEY = "dummy"
-        Config.ZEP_API_KEY = None
+        original = Config.GRAPH_PROVIDER
+        try:
+            Config.GRAPH_PROVIDER = "local_simple"
+            self.assertTrue(any("GRAPH_PROVIDER" in error for error in Config.validate()))
+        finally:
+            Config.GRAPH_PROVIDER = original
 
-        self.assertEqual(Config.validate(), [])
+    def test_graphiti_projection_cache_roundtrip_and_entity_filter(self):
+        from app.services.graphiti_projection_cache import GraphitiProjectionEntityReader, GraphitiProjectionGraphBuilder
 
-    def test_local_simple_graph_roundtrip_and_entity_filter(self):
-        from app.services.graph_provider import get_graph_builder, get_entity_reader
-
-        builder = get_graph_builder()
-        graph_id = builder.create_graph("smoke")
+        builder = GraphitiProjectionGraphBuilder()
+        graph_id = builder.create_graph("projection smoke")
         builder.set_ontology(graph_id, {
             "entity_types": [
                 {"name": "Person", "description": "A simulated person", "attributes": []},
@@ -48,7 +53,7 @@ class LocalSimpleProviderTest(unittest.TestCase):
         self.assertGreaterEqual(data["node_count"], 2)
         self.assertGreaterEqual(data["edge_count"], 1)
 
-        reader = get_entity_reader()
+        reader = GraphitiProjectionEntityReader()
         filtered = reader.filter_defined_entities(graph_id)
         self.assertGreaterEqual(filtered.filtered_count, 2)
         self.assertIn("Person", filtered.entity_types)

@@ -352,7 +352,8 @@
     "step4Short": "보고서(Report)",
     "step5Short": "대화(Chat)",
     "statusRepaired": "복구 처리(Repaired)",
-    "statusFailed": "실패(Failed)"
+    "statusFailed": "실패(Failed)",
+    "projectionCache": "표시 캐시(Projection)"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",

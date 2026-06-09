@@ -1,4 +1,9 @@
-"""Graph provider factory for ZEP-free/local, Graphiti, and legacy Zep backends."""
+"""Graph provider factory for Graphiti and legacy Zep backends.
+
+Graphiti is the local/ZEP-free runtime. The old local_simple provider is no
+longer selectable as a product runtime; Graphiti projection cache is internal
+UI/read-model scaffolding only.
+"""
 
 from __future__ import annotations
 
@@ -8,15 +13,11 @@ from ..config import Config
 
 
 def provider_name() -> str:
-    return (Config.GRAPH_PROVIDER or "zep").lower()
+    return (Config.GRAPH_PROVIDER or "graphiti").lower()
 
 
 def is_zep_provider() -> bool:
     return provider_name() == "zep"
-
-
-def is_local_simple_provider() -> bool:
-    return provider_name() == "local_simple"
 
 
 def is_graphiti_provider() -> bool:
@@ -24,9 +25,6 @@ def is_graphiti_provider() -> bool:
 
 
 def get_graph_builder() -> Any:
-    if is_local_simple_provider():
-        from .local_simple_graph import LocalSimpleGraphBuilder
-        return LocalSimpleGraphBuilder()
     if is_graphiti_provider():
         from .graphiti_provider import GraphitiGraphBuilder
         return GraphitiGraphBuilder()
@@ -35,9 +33,6 @@ def get_graph_builder() -> Any:
 
 
 def get_entity_reader() -> Any:
-    if is_local_simple_provider():
-        from .local_simple_graph import LocalSimpleEntityReader
-        return LocalSimpleEntityReader()
     if is_graphiti_provider():
         from .graphiti_provider import GraphitiEntityReader
         return GraphitiEntityReader()
@@ -46,9 +41,6 @@ def get_entity_reader() -> Any:
 
 
 def get_graph_tools(llm_client: Optional[Any] = None) -> Any:
-    if is_local_simple_provider():
-        from .local_simple_graph import LocalSimpleToolsService
-        return LocalSimpleToolsService(llm_client=llm_client)
     if is_graphiti_provider():
         from .graphiti_provider import GraphitiToolsService
         return GraphitiToolsService(llm_client=llm_client)
@@ -57,9 +49,6 @@ def get_graph_tools(llm_client: Optional[Any] = None) -> Any:
 
 
 def get_graph_memory_manager() -> Any:
-    if is_local_simple_provider():
-        from .local_simple_graph import LocalSimpleGraphMemoryManager
-        return LocalSimpleGraphMemoryManager
     if is_graphiti_provider():
         from .graphiti_provider import GraphitiGraphMemoryManager
         return GraphitiGraphMemoryManager

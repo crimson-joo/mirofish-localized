@@ -6,13 +6,15 @@ import unittest
 class RouteSmokeTest(unittest.TestCase):
     def setUp(self):
         self.tmpdir = tempfile.TemporaryDirectory()
-        os.environ["GRAPH_PROVIDER"] = "local_simple"
+        os.environ["GRAPH_PROVIDER"] = "graphiti"
+        os.environ["GRAPHITI_BASE_URL"] = "http://127.0.0.1:1"
         os.environ["LOCAL_GRAPH_STORAGE_DIR"] = self.tmpdir.name
         os.environ["LLM_API_KEY"] = "dummy"
         os.environ.pop("ZEP_API_KEY", None)
 
         from app.config import Config
-        Config.GRAPH_PROVIDER = "local_simple"
+        Config.GRAPH_PROVIDER = "graphiti"
+        Config.GRAPHITI_BASE_URL = "http://127.0.0.1:1"
         Config.LOCAL_GRAPH_STORAGE_DIR = self.tmpdir.name
         Config.LLM_API_KEY = "dummy"
         Config.ZEP_API_KEY = None
@@ -37,9 +39,9 @@ class RouteSmokeTest(unittest.TestCase):
         self.assertIn("count", payload)
 
     def test_graph_data_route_exposes_runtime_shape(self):
-        from app.services.graph_provider import get_graph_builder
+        from app.services.graphiti_projection_cache import GraphitiProjectionGraphBuilder
 
-        builder = get_graph_builder()
+        builder = GraphitiProjectionGraphBuilder()
         graph_id = builder.create_graph("route smoke")
         builder.set_ontology(graph_id, {"entity_types": [{"name": "Person", "description": "person"}], "edge_types": []})
         builder.add_text_batches(graph_id, ["Alice influences Bob."])
