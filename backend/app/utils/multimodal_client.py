@@ -62,7 +62,7 @@ class MultimodalClient:
                 model=self.model,
                 timeout=self.timeout,
                 temperature=0.1,
-                max_tokens=2048,
+                max_tokens=getattr(Config, "MULTIMODAL_MAX_TOKENS", 768),
                 messages=[
                     {
                         "role": "user",

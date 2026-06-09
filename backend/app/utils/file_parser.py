@@ -4,6 +4,7 @@
 """
 
 import os
+import tempfile
 from pathlib import Path
 from typing import List, Optional
 
@@ -112,20 +113,81 @@ class FileParser:
     
     @staticmethod
     def _extract_from_pdf(file_path: str) -> str:
-        """从PDF提取文本"""
+        """Extract text from a PDF and, when configured, analyze visual pages."""
         try:
             import fitz  # PyMuPDF
         except ImportError:
             raise ImportError("需要安装PyMuPDF: pip install PyMuPDF")
-        
+
+        from ..config import Config
+
         text_parts = []
+        visual_pages = []
         with fitz.open(file_path) as doc:
-            for page in doc:
+            for page_index, page in enumerate(doc, 1):
                 text = page.get_text()
                 if text.strip():
-                    text_parts.append(text)
-        
+                    text_parts.append(f"[PDF page {page_index} text]\n{text}")
+
+                if Config.PDF_MULTIMODAL_ANALYSIS and FileParser._pdf_page_needs_visual_analysis(page, text):
+                    visual_pages.append(page_index)
+
+            if (
+                Config.PDF_MULTIMODAL_ANALYSIS
+                and Config.MULTIMODAL_BASE_URL
+                and Config.MULTIMODAL_MODEL_NAME
+                and visual_pages
+            ):
+                visual_parts = FileParser._extract_pdf_visuals(doc, file_path, visual_pages[: Config.PDF_MULTIMODAL_MAX_PAGES])
+                text_parts.extend(visual_parts)
+
         return "\n\n".join(text_parts)
+
+    @staticmethod
+    def _pdf_page_needs_visual_analysis(page, text: str) -> bool:
+        """Detect pages likely to contain images, scanned content, charts, or vector diagrams."""
+        if not text.strip():
+            return True
+        try:
+            if page.get_images(full=True):
+                return True
+        except Exception:
+            pass
+        try:
+            # Charts and diagrams often appear as multiple vector drawing operations.
+            return len(page.get_drawings()) >= 3
+        except Exception:
+            return False
+
+    @staticmethod
+    def _extract_pdf_visuals(doc, file_path: str, page_numbers: List[int]) -> List[str]:
+        """Render selected PDF pages and describe them with the multimodal model."""
+        from .multimodal_client import MultimodalClient
+        from ..config import Config
+        import fitz  # PyMuPDF
+
+        client = MultimodalClient()
+        filename = Path(file_path).name
+        scale = max(Config.PDF_MULTIMODAL_DPI, 72) / 72
+        visual_parts = []
+
+        with tempfile.TemporaryDirectory(prefix="mirofish_pdf_pages_") as tmpdir:
+            for page_number in page_numbers:
+                page = doc[page_number - 1]
+                pix = page.get_pixmap(matrix=fitz.Matrix(scale, scale), alpha=False)
+                image_path = Path(tmpdir) / f"{Path(file_path).stem}_page_{page_number}.png"
+                pix.save(str(image_path))
+                prompt = (
+                    "Analyze this rendered PDF page for a simulation/GraphRAG pipeline. "
+                    "Focus on embedded images, charts, tables, diagrams, visible labels, numbers, trends, entities, relationships, "
+                    "risks, and uncertainties. Also mention if the page is mostly plain text. Return concise Korean or English plain text."
+                )
+                description = client.describe_image(str(image_path), prompt=prompt)
+                visual_parts.append(
+                    f"[PDF visual analysis: {filename}, page {page_number}]\n{description}"
+                )
+
+        return visual_parts
     
     @staticmethod
     def _extract_from_md(file_path: str) -> str:

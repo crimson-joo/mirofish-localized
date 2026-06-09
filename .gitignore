@@ -41,9 +41,10 @@ yarn-error.log*
 .coverage
 htmlcov/
 
-# Cursor
+# Cursor / local agent run artifacts
 .cursor/
 .claude/
+.hermes/runs/
 
 # 文档与测试程序
 mydoc/
