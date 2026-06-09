@@ -34,6 +34,25 @@
   - Local quickstart
 - Pages는 실제 MiroFish runtime이 아니라 정적 checkpoint임을 명시
 
+## 다국어 제품 QA 기준
+
+한국어/영어/중국어가 사용자 선택 언어로 지원되는 동안 QA는 단순 UI 라벨 확인이 아니라 실제 사용자 흐름 기준으로 수행합니다.
+
+- 언어 전환: 브라우저의 실제 언어 스위처로 `ko`, `en`, `zh`를 선택하고 `html lang`, 로컬 저장값, 홈 화면 핵심 문구가 일치해야 합니다.
+- 홈/입력 흐름: 각 언어에서 업로드 영역, 시뮬레이션 프롬프트, 시작 버튼 상태, 워크플로우, 시뮬레이션 기록이 의도한 언어로 보이는지 확인합니다.
+- 기록/보고서 흐름: 완료된 시뮬레이션 또는 report route에 진입해 그래프, 보고서, 심화 인터랙션/Report Agent chrome이 선택 언어로 보이는지 확인합니다.
+- Report Agent Q&A: 같은 시뮬레이션 질문을 `ko`, `en`, `zh` 사용자처럼 각각 묻고, 새로 생성된 답변이 선택 언어로 출력되는지 검증합니다.
+- 언어 누수 판정: 현재 UI chrome과 새 Report Agent 답변의 wrong-language leakage는 실패로 봅니다. 단, 과거에 생성된 보고서 본문/시뮬레이션 제목/업로드 파일명은 원본 데이터 언어가 유지될 수 있으므로 별도 번역 요구가 없는 한 실패로 보지 않습니다.
+
+## 2026-06-09 수동 제품 QA 기준선
+
+- 범위: `ko`, `en`, `zh` 실제 사용자 관점의 홈 → 언어 전환 → 기록/보고서 → 심화 인터랙션 → Report Agent Q&A.
+- 결과: PASS.
+- 자동 canary: `scripts/local-runtime-canary-runner.py` 기준 `HEALTHY` — browser locale canary와 Report Agent locale E2E 모두 PASS.
+- 수동 제품 QA: 각 언어별 홈 화면/심화 인터랙션 화면/Report Agent 새 답변 언어 검증 PASS.
+- 증거: `canary-artifacts/manual-locale-product-qa/` 및 `canary-artifacts/local-runtime-locale-{ko,en,zh}.png`.
+- 관찰: 기존 히스토리 카드 제목과 과거 보고서 본문은 생성 당시 원문 언어가 유지됩니다. 이는 현재 언어 선택 UI chrome 또는 새 답변 언어 누수와 구분해 판정합니다.
+
 ## 보고 기준
 
 QA/Canary 보고는 다음을 분리합니다.
