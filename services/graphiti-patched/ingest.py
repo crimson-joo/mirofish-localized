@@ -9,6 +9,7 @@ add_episode for each message.
 
 import asyncio
 from datetime import datetime
+import os
 import re
 from uuid import uuid4
 
@@ -128,7 +129,7 @@ async def add_messages(
                     source=EpisodeType.message,
                     source_description=m.source_description,
                 ),
-                timeout=45,
+                timeout=int(os.environ.get('GRAPHITI_MESSAGE_NATIVE_TIMEOUT', '120')),
             )
             native += 1
         except Exception as exc:
