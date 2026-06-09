@@ -1,6 +1,6 @@
 """
 文件解析工具
-支持PDF、Markdown、TXT文件的文本提取
+支持PDF、Markdown、TXT与图片文件的文本提取
 """
 
 import os
@@ -61,7 +61,8 @@ def _read_text_with_fallback(file_path: str) -> str:
 class FileParser:
     """文件解析器"""
     
-    SUPPORTED_EXTENSIONS = {'.pdf', '.md', '.markdown', '.txt'}
+    SUPPORTED_EXTENSIONS = {'.pdf', '.md', '.markdown', '.txt', '.png', '.jpg', '.jpeg', '.webp', '.gif'}
+    IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.webp', '.gif'}
     
     @classmethod
     def is_supported(cls, file_path: str) -> bool:
@@ -104,6 +105,8 @@ class FileParser:
             return cls._extract_from_md(file_path)
         elif suffix == '.txt':
             return cls._extract_from_txt(file_path)
+        elif suffix in cls.IMAGE_EXTENSIONS:
+            return cls._extract_from_image(file_path)
         
         raise ValueError(f"无法处理的文件格式: {suffix}")
     
@@ -133,6 +136,15 @@ class FileParser:
     def _extract_from_txt(file_path: str) -> str:
         """从TXT提取文本，支持自动编码检测"""
         return _read_text_with_fallback(file_path)
+
+    @staticmethod
+    def _extract_from_image(file_path: str) -> str:
+        """Use the configured multimodal model to extract text/signals from an image."""
+        from .multimodal_client import MultimodalClient
+
+        description = MultimodalClient().describe_image(file_path)
+        filename = Path(file_path).name
+        return f"[Multimodal image analysis: {filename}]\n{description}"
     
     @classmethod
     def extract_from_multiple(cls, file_paths: List[str]) -> str:

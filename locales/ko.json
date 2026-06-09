@@ -61,7 +61,7 @@
     "step05Title": "심화 인터랙션",
     "step05Desc": "시뮬레이션 속 개인 또는 보고서 AI와 대화합니다",
     "realitySeed": "01 / 현실 씨앗",
-    "supportedFormats": "지원 형식: PDF, MD, TXT",
+    "supportedFormats": "지원 형식: PDF, MD, TXT, PNG, JPG, WEBP",
     "dragToUpload": "파일을 끌어 업로드",
     "orBrowse": "또는 클릭해서 파일 선택",
     "inputParams": "입력 파라미터",
