@@ -10,10 +10,11 @@ are surfaced as failures; the local cache is never used as a silent success path
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..config import Config
 from ..utils.logger import get_logger
@@ -73,7 +74,11 @@ def _record_graphiti_event(
         "compatibility_cache_enabled": True,
     })
     if operation == "messages":
-        status_obj["native_ingest_state"] = "pass" if native_success else "blocked"
+        ingest_state = (details or {}).get("native_ingest_state")
+        if ingest_state:
+            status_obj["native_ingest_state"] = ingest_state
+        else:
+            status_obj["native_ingest_state"] = "pass" if native_success else "failed"
     if operation == "search":
         if "failed" in status:
             status_obj["native_search_state"] = "failed"
@@ -101,6 +106,27 @@ def _json_request(method: str, path: str, payload: Optional[Dict[str, Any]] = No
     except urllib.error.HTTPError as exc:
         detail = exc.read().decode("utf-8", "ignore")
         raise RuntimeError(f"Graphiti {method} {path} failed: HTTP {exc.code} {detail}") from exc
+
+
+def _message_ingest_counts(response: Dict[str, Any]) -> Tuple[int, int, int]:
+    """Parse patched Graphiti /messages native/repaired/failed counts."""
+    message = str(response.get("message", ""))
+    counts = {"native": 0, "repaired": 0, "failed": 0}
+    for key in counts:
+        match = re.search(rf"{key}=(\d+)", message)
+        if match:
+            counts[key] = int(match.group(1))
+    return counts["native"], counts["repaired"], counts["failed"]
+
+
+def _ingest_state(native_count: int, repaired_count: int, failed_count: int) -> str:
+    if failed_count > 0:
+        return "failed"
+    if repaired_count > 0:
+        return "repaired"
+    if native_count > 0:
+        return "pass"
+    return "unknown"
 
 
 class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
@@ -160,14 +186,42 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
                 "source_description": "mirofish-localized graph build seed",
             })
         if messages:
+            native_total = 0
+            repaired_total = 0
+            failed_total = 0
+            responses = []
             try:
-                response = _json_request("POST", "/messages", {"group_id": graph_id, "messages": messages}, timeout=180.0)
+                for index, message in enumerate(messages, start=1):
+                    response = _json_request(
+                        "POST",
+                        "/messages",
+                        {"group_id": graph_id, "messages": [message]},
+                        timeout=90.0,
+                    )
+                    native_count, repaired_count, failed_count = _message_ingest_counts(response)
+                    native_total += native_count
+                    repaired_total += repaired_count
+                    failed_total += failed_count
+                    responses.append(response)
+                    if progress_callback:
+                        progress_callback(f"Graphiti ingest {index}/{len(messages)}", index / len(messages))
+                    if failed_count > 0 or response.get("success") is False:
+                        raise RuntimeError(response.get("message") or "Graphiti patched /messages reported failure")
+                ingest_state = _ingest_state(native_total, repaired_total, failed_total)
                 _record_graphiti_event(
                     graph_id,
                     "messages",
-                    "native_ingest_pass",
-                    native_success=True,
-                    details={"message_count": len(messages), "response": response},
+                    f"native_ingest_{ingest_state}",
+                    native_success=failed_total == 0,
+                    details={
+                        "message_count": len(messages),
+                        "native_count": native_total,
+                        "repaired_count": repaired_total,
+                        "failed_count": failed_total,
+                        "native_ingest_state": ingest_state,
+                        "batch_size": 1,
+                        "responses": responses[-3:],
+                    },
                 )
             except Exception as exc:
                 _record_graphiti_event(
@@ -176,10 +230,17 @@ class GraphitiGraphBuilder(LocalSimpleGraphBuilder):
                     "native_ingest_failed",
                     native_success=False,
                     error=str(exc),
-                    details={"message_count": len(messages)},
+                    details={
+                        "message_count": len(messages),
+                        "native_count": native_total,
+                        "repaired_count": repaired_total,
+                        "failed_count": failed_total,
+                        "native_ingest_state": "failed",
+                        "batch_size": 1,
+                    },
                 )
                 raise RuntimeError(f"Graphiti native message ingest failed for group {graph_id}: {exc}") from exc
-        # Compatibility cache is populated only after native Graphiti accepts the batch.
+        # Compatibility cache is populated only after Graphiti accepts every small batch.
         return super().add_text_batches(graph_id, chunks, batch_size, progress_callback)
 
     def get_graph_data(self, graph_id: str) -> Dict[str, Any]:
@@ -285,7 +346,7 @@ class GraphitiGraphMemoryUpdater(LocalSimpleGraphMemoryUpdater):
             "source_description": "mirofish-localized simulation action",
         }
         try:
-            _json_request("POST", "/messages", {"group_id": self.graph_id, "messages": [message]}, timeout=30.0)
+            _json_request("POST", "/messages", {"group_id": self.graph_id, "messages": [message]}, timeout=90.0)
         except Exception as exc:
             raise RuntimeError(f"Graphiti action episode ingest failed for group {self.graph_id}: {exc}") from exc
         super().add_activity_from_dict(data, platform)

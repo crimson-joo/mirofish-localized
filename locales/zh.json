@@ -350,7 +350,9 @@
     "step2Short": "环境",
     "step3Short": "运行",
     "step4Short": "报告",
-    "step5Short": "对话"
+    "step5Short": "对话",
+    "statusRepaired": "已修复处理",
+    "statusFailed": "失败"
   },
   "api": {
     "projectNotFound": "项目不存在: {id}",

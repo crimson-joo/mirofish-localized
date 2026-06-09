@@ -27,6 +27,8 @@ class _GraphitiStub(BaseHTTPRequestHandler):
         type(self).calls.append(("POST", self.path, payload))
         if self.path == "/search":
             self._send(200, {"facts": [{"uuid": "fact1", "name": "RELATES_TO", "fact": "Alice influences Bob", "valid_at": None, "invalid_at": None, "created_at": "2026-01-01T00:00:00Z", "expired_at": None}]})
+        elif self.path == "/messages":
+            self._send(202, {"success": True, "message": "Messages processed synchronously; native=1, repaired=0, failed=0"})
         else:
             self._send(202, {"success": True})
 
@@ -118,14 +120,44 @@ class GraphitiProviderTest(unittest.TestCase):
                 builder.add_text_batches(graph_id, ["Alice influences Bob when native extraction fails."])
 
             graph_data = builder.get_graph_data(graph_id)
-            self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "blocked")
+            self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "failed")
             self.assertFalse(graph_data["graphiti_status"]["fallback_cache_enabled"])
             self.assertTrue(graph_data["graphiti_errors"])
-            self.assertEqual(graph_data["native_graph_memory_state"], "blocked")
+            self.assertEqual(graph_data["native_graph_memory_state"], "failed")
 
             result = get_graph_tools().quick_search(graph_id, "Alice", limit=5)
             self.assertEqual(result.total_count, 0)
             self.assertEqual(result.facts, [])
+        finally:
+            _GraphitiStub.do_POST = original_do_post
+
+    def test_graphiti_provider_marks_repaired_ingest_without_local_fallback(self):
+        from app.services.graph_provider import get_graph_builder
+
+        original_do_post = _GraphitiStub.do_POST
+
+        def repaired_do_post(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode() or "{}")
+            type(self).calls.append(("POST", self.path, payload))
+            if self.path == "/messages":
+                self._send(202, {"success": True, "message": "Messages processed synchronously; native=0, repaired=1, failed=0"})
+            elif self.path == "/search":
+                self._send(200, {"facts": []})
+            else:
+                self._send(202, {"success": True})
+
+        _GraphitiStub.do_POST = repaired_do_post
+        try:
+            builder = get_graph_builder()
+            graph_id = builder.create_graph("graphiti repaired smoke")
+            builder.set_ontology(graph_id, {"entity_types": [{"name": "Person", "description": "person"}], "edge_types": []})
+            builder.add_text_batches(graph_id, ["Alice influences Bob through repair."])
+
+            graph_data = builder.get_graph_data(graph_id)
+            self.assertEqual(graph_data["graphiti_status"]["native_ingest_state"], "repaired")
+            self.assertFalse(graph_data["graphiti_status"]["fallback_cache_enabled"])
+            self.assertEqual(graph_data["native_graph_memory_state"], "repaired")
         finally:
             _GraphitiStub.do_POST = original_do_post
 

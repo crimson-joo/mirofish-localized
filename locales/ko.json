@@ -350,7 +350,9 @@
     "step2Short": "환경(Env)",
     "step3Short": "실행(Run)",
     "step4Short": "보고서(Report)",
-    "step5Short": "대화(Chat)"
+    "step5Short": "대화(Chat)",
+    "statusRepaired": "복구 처리(Repaired)",
+    "statusFailed": "실패(Failed)"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",

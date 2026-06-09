@@ -300,6 +300,8 @@ const runtimeProductFlowText = computed(() => formatRuntimeState(runtimeProductF
 const formatRuntimeState = (state) => {
   const normalized = state || 'unknown'
   if (normalized === 'pass') return t('history.statusPass')
+  if (normalized === 'repaired') return t('history.statusRepaired')
+  if (normalized === 'failed') return t('history.statusFailed')
   if (normalized === 'partial') return t('history.statusPartial')
   if (normalized === 'pending') return t('history.statusPending')
   if (normalized === 'blocked') return t('history.statusBlocked')
@@ -311,6 +313,8 @@ const nativeExtractionLabel = computed(() => {
   const ingest = graphitiStatus.value.native_ingest_state || 'unknown'
   const search = graphitiStatus.value.native_search_state || 'unknown'
   if (ingest === 'pass' && search === 'pass') return t('history.statusPass')
+  if (ingest === 'repaired') return t('history.statusRepaired')
+  if (ingest === 'failed') return t('history.statusFailed')
   if (ingest === 'blocked') return t('history.statusBlocked')
   if (search === 'fallback') return t('history.statusFallback')
   return t('common.unknown')
@@ -350,7 +354,8 @@ const runtimeSteps = computed(() => {
 const graphitiNativeClass = computed(() => {
   const state = graphitiStatus.value.native_ingest_state
   if (state === 'pass') return 'pass'
-  if (state === 'blocked') return 'blocked'
+  if (state === 'repaired') return 'partial'
+  if (state === 'failed' || state === 'blocked') return 'blocked'
   return 'partial'
 })
 

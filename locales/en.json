@@ -350,7 +350,9 @@
     "step2Short": "Env",
     "step3Short": "Run",
     "step4Short": "Report",
-    "step5Short": "Chat"
+    "step5Short": "Chat",
+    "statusRepaired": "Repaired",
+    "statusFailed": "Failed"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",

@@ -7,6 +7,7 @@ prefer deterministic behavior: /messages returns only after Graphiti has called
 add_episode for each message.
 """
 
+import asyncio
 from datetime import datetime
 import re
 from uuid import uuid4
@@ -109,29 +110,39 @@ async def add_messages(
 ):
     repaired = 0
     native = 0
+    failed = 0
+    errors = []
     for m in request.messages:
         # graphiti_core.add_episode treats a non-null uuid as an update lookup in
         # current releases. Passing MiroFish's client-generated uuid causes
         # NodeNotFoundError instead of creating the episode, so let Graphiti create
         # the episode uuid while MiroFish keeps its own compatibility cache ids.
         try:
-            await graphiti.add_episode(
-                uuid=None,
-                group_id=request.group_id,
-                name=m.name,
-                episode_body=f'{m.role or ""}({m.role_type}): {m.content}',
-                reference_time=m.timestamp,
-                source=EpisodeType.message,
-                source_description=m.source_description,
+            await asyncio.wait_for(
+                graphiti.add_episode(
+                    uuid=None,
+                    group_id=request.group_id,
+                    name=m.name,
+                    episode_body=f'{m.role or ""}({m.role_type}): {m.content}',
+                    reference_time=m.timestamp,
+                    source=EpisodeType.message,
+                    source_description=m.source_description,
+                ),
+                timeout=45,
             )
             native += 1
-        except Exception:
-            await _repair_fact_edge(graphiti, request.group_id, m.content, m.source_description)
-            repaired += 1
+        except Exception as exc:
+            try:
+                await _repair_fact_edge(graphiti, request.group_id, m.content, m.source_description)
+                repaired += 1
+                errors.append(f'{m.name}: repaired after {type(exc).__name__}')
+            except Exception as repair_exc:
+                failed += 1
+                errors.append(f'{m.name}: native {type(exc).__name__}; repair {type(repair_exc).__name__}: {repair_exc}')
 
     return Result(
-        message=f'Messages processed synchronously; native={native}, repaired={repaired}',
-        success=True,
+        message=f'Messages processed synchronously; native={native}, repaired={repaired}, failed={failed}' + (f'; errors={" | ".join(errors[:3])}' if errors else ''),
+        success=failed == 0,
     )
 
 
