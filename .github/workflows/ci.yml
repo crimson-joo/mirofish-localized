@@ -27,6 +27,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - name: Read QA and release intent
         run: |
@@ -86,6 +88,16 @@ jobs:
           export webhook_url webhook_secret
           node <<'NODE'
           const crypto = require('crypto');
+          const { execFileSync } = require('child_process');
+          let changedFiles = [];
+          try {
+            changedFiles = execFileSync('git', ['diff-tree', '--no-commit-id', '--name-only', '-r', process.env.GITHUB_SHA], { encoding: 'utf8' })
+              .split('\n')
+              .map((line) => line.trim())
+              .filter(Boolean);
+          } catch (error) {
+            console.log(`Could not compute changed files: ${error.message}`);
+          }
           const body = JSON.stringify({
             event: 'local_runtime_ci_pass',
             repo: process.env.GITHUB_REPOSITORY,
@@ -95,7 +107,8 @@ jobs:
             run_url: `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`,
             frontend_url: 'http://127.0.0.1:3000/',
             backend_url: 'http://127.0.0.1:5001',
-            canary_scripts: ['scripts/local-runtime-browser-canary.mjs', 'scripts/report-locale-e2e.py'],
+            changed_files: changedFiles,
+            canary_scripts: ['scripts/local-runtime-canary-runner.py', 'scripts/local-runtime-browser-canary.mjs', 'scripts/report-locale-e2e.py'],
           });
           const headers = {
             'content-type': 'application/json',
