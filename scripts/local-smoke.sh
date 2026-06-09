@@ -33,7 +33,7 @@ cd "$ROOT_DIR"
 
 printf '== MiroFish Local Demo MVP smoke ==\n'
 
-if docker compose --profile graphiti ps >/dev/null 2>&1; then
+if docker compose ps >/dev/null 2>&1; then
   pass "docker compose project detected"
 else
   fail "docker compose project unavailable"

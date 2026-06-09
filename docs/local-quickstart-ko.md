@@ -28,8 +28,10 @@ cd /Users/crimson/Projects/mirofish-localized
 cp .env.example .env
 # 필요 시 .env에서 LLM/embedding endpoint 조정
 # Graphiti extraction만 별도 모델로 강화하려면 GRAPH_MEMORY_MODEL_NAME / GRAPH_MEMORY_SMALL_MODEL_NAME 조정
-GRAPH_PROVIDER=graphiti docker compose --profile graphiti up -d --build
+docker compose up -d --build
 ```
+
+기본 `docker compose up`은 MiroFish + Graphiti + Neo4j를 함께 올립니다. 즉 Graphiti를 따로 호스트에 띄워둘 필요가 없습니다.
 
 기본 URL:
 
@@ -127,6 +129,23 @@ Projection cache: ENABLED | DISABLED
 local_simple fallback: REMOVED
 ```
 
+## Multimodal / Ollama Gemma4
+
+현재 Step1~Step5의 GraphRAG/시뮬레이션/보고서 흐름은 텍스트 기반입니다. `MULTIMODAL_*` 값은 향후 PDF 이미지, 차트, 스크린샷 분석 입력을 붙이기 위한 endpoint 설정입니다.
+
+```text
+gemma4:12b-mlx
+- Apple/macOS 호스트의 Ollama/MLX 런타임용
+- Docker 컨테이너에서는 http://host.docker.internal:11434/v1 로 접근
+- 이미지+텍스트 질의가 가능한 vision-capable LLM 성격
+
+Docker 안의 Ollama
+- Linux 컨테이너 런타임이므로 MLX tag가 아니라 일반 tag를 사용
+- 예: OLLAMA_MULTIMODAL_MODEL=gemma4:12b docker compose --profile ollama up ollama-pull
+```
+
+주의: 멀티모달 LLM은 이미지 이해/요약/OCR-like 질의는 할 수 있지만, 전용 OCR 엔진이나 문서 레이아웃 파서와 완전히 같은 역할은 아닙니다. 정확한 표 추출, 좌표 기반 OCR, 대량 PDF 파싱이 필요해지면 OCR/문서 파서 + multimodal LLM을 함께 붙이는 구조가 더 안정적입니다.
+
 ## Known limitations
 
 - 현재 기본 local endpoint에서는 structured-output normalization을 통해 strict native smoke가 `native>=1, repaired=0` 기준으로 통과해야 합니다.
@@ -139,15 +158,15 @@ local_simple fallback: REMOVED
 ### backend health 실패
 
 ```bash
-docker compose --profile graphiti ps
-docker compose --profile graphiti logs --tail=120 mirofish
+docker compose ps
+docker compose logs --tail=120 mirofish
 ```
 
 ### graphiti health 실패
 
 ```bash
-docker compose --profile graphiti logs --tail=160 graph-memory
-docker compose --profile graphiti logs --tail=120 neo4j
+docker compose logs --tail=160 graph-memory
+docker compose logs --tail=120 neo4j
 ```
 
 ### Graphiti native ingest blocked
