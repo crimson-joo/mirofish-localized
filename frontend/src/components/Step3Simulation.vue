@@ -398,8 +398,8 @@ const doStartSimulation = async () => {
     const params = {
       simulation_id: props.simulationId,
       platform: 'parallel',
-      force: true,  // 强制重新开始
-      enable_graph_memory_update: true  // 开启动态图谱更新
+      force: true,  // 명시적 실행 버튼으로 들어온 경우 기존 로그를 정리하고 재실행
+      enable_graph_memory_update: true  // 기본은 의미 실행: 라운드별 Agent 활동을 Graph memory에 반영한다
     }
     
     if (props.maxRounds) {

@@ -38,7 +38,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./backend/uploads:/app/backend/uploads
-      - mirofish_local_graphs:/app/backend/uploads/local_graphs
+      - /Volumes/ExternalSSD/AIStorage/docker/mirofish/local_graphs:/app/backend/uploads/local_graphs
     extra_hosts:
       - "host.docker.internal:host-gateway"
     depends_on:
@@ -86,8 +86,8 @@ services:
       - "7474:7474"
       - "7687:7687"
     volumes:
-      - neo4j_data:/data
-      - neo4j_logs:/logs
+      - /Volumes/ExternalSSD/AIStorage/docker/mirofish/neo4j/data:/data
+      - /Volumes/ExternalSSD/AIStorage/docker/mirofish/neo4j/logs:/logs
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:7474 || exit 1"]
       interval: 10s

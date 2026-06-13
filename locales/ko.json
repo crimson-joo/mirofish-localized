@@ -152,12 +152,12 @@
     "setupCompleteDesc": "시뮬레이션 환경이 준비되었습니다. 이제 시뮬레이션을 시작할 수 있습니다.",
     "roundsConfig": "시뮬레이션 라운드 설정",
     "roundsConfigDesc": "MiroFish가 현실 시간 {hours}시간을 시뮬레이션하도록 계획하며, 각 라운드는 {minutesPerRound}분을 의미합니다",
-    "customToggle": "사용자 설정",
+    "customToggle": "라운드 직접 설정",
     "roundsUnit": "라운드",
     "estimatedDuration": "AI 참가자 100명 기준: 약 {minutes}분 예상",
     "estimatedDurationFull": "AI 참가자 100명 기준: {minutes}분 예상",
     "recommendedRounds": "{rounds} (추천)",
-    "customTip": "첫 실행은 빠른 미리보기와 오류 위험 감소를 위해 사용자 설정 모드로 라운드를 줄이는 것을 권장합니다",
+    "customTip": "전체 실행이 필요하면 라운드 직접 설정을 끄거나 슬라이더를 120까지 올려 실행할 수 있습니다",
     "backToGraphBuild": "그래프 구축으로 돌아가기",
     "startDualWorldSim": "이중 월드 병렬 시뮬레이션 시작",
     "profileModalAge": "추정 나이",
@@ -180,7 +180,20 @@
     "genderOther": "기타",
     "yearsOld": "세",
     "initializing": "초기화 중",
-    "generating": "생성 중"
+    "generating": "생성 중",
+    "personaPlanTitle": "Persona 생성 범위",
+    "personaPlanDesc": "입력 보고서에서 추출된 대상(Entity)을 기준으로 이번 실행에 투입할 Agent Persona 범위를 정합니다.",
+    "personaModeCore": "핵심 Persona",
+    "personaModeCoreDesc": "유형 다양성과 그래프 연결도를 기준으로 최대 {count}개를 선별합니다.",
+    "personaModeAll": "전체 Entity 반영",
+    "personaModeAllDesc": "추출된 모든 Entity를 Persona로 사용합니다. 실행 시간이 크게 늘 수 있습니다.",
+    "maxPersonaCount": "최대 Persona 수",
+    "graphMemoryDefaultOn": "Graph memory update 기본 ON",
+    "executionScaleLarge": "대규모/긴 실행 모드",
+    "executionScaleBalanced": "균형 실행 모드",
+    "startPersonaPreparation": "이 기준으로 Persona 생성 시작",
+    "extractedEntityCount": "추출 Entity",
+    "expectedPersonaTotal": "이번 실행 Persona"
   },
   "step3": {
     "startGenerateReport": "보고서 생성",
@@ -358,7 +371,9 @@
     "step5Short": "대화(Chat)",
     "statusRepaired": "복구 처리(Repaired)",
     "statusFailed": "실패(Failed)",
-    "projectionCache": "표시 캐시(Projection)"
+    "projectionCache": "표시 캐시(Projection)",
+    "statusRunComplete": "시뮬레이션 완료 / 보고서 대기",
+    "flowRunComplete": "실행 완료 / 보고서 대기"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",
@@ -553,8 +568,8 @@
     "timeConfigDetail": "Time config: {minutes} min/round, {rounds} rounds total",
     "narrativeDirection": "Narrative direction: {direction}",
     "envSetupComplete": "✓ Environment setup complete, ready to simulate",
-    "startSimCustomRounds": "Starting simulation, custom rounds: {rounds}",
-    "startSimAutoRounds": "Starting simulation, auto-configured rounds: {rounds}",
+    "startSimCustomRounds": "설정한 라운드로 시뮬레이션 시작: {rounds}",
+    "startSimAutoRounds": "전체 설정 라운드로 시뮬레이션 시작: {rounds}",
     "startGeneratingAgentProfiles": "Generating agent personas...",
     "agentProfile": "→ Agent persona {current}/{total}: {name} ({profession})",
     "allProfilesComplete": "✓ All {count} agent personas generated",
@@ -605,7 +620,10 @@
     "getReportInfoFailed": "Failed to get report info: {error}",
     "enterStep": "Entering Step {step}: {name}",
     "returnToStep": "Returning to Step {step}: {name}",
-    "customSimRounds": "Custom simulation rounds: {rounds} rounds"
+    "customSimRounds": "Custom simulation rounds: {rounds} rounds",
+    "graphMemoryUpdateDisabled": "동적 그래프 메모리 업데이트 비활성화(안정 실행 모드)",
+    "personaPlanAwaitingSelection": "Persona 생성 범위를 선택한 뒤 준비를 시작하세요",
+    "personaPlanApplied": "Persona 계획 적용: {mode}, {count}개"
   },
   "report": {
     "taskStarted": "Report generation task started",

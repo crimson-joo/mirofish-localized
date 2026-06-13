@@ -289,19 +289,27 @@ const graphitiStatus = computed(() => selectedGraphData.value?.graphiti_status |
 const runtimeProductFlowState = computed(() => {
   if (!selectedProject.value) return 'unknown'
   if (selectedProject.value.report_id) return 'pass'
-  if ((selectedProject.value.current_round || 0) > 0) return 'partial'
+  if (isRunComplete(selectedProject.value)) return 'run_complete'
   if (selectedProject.value.config_generated) return 'partial'
   return 'pending'
 })
 
-const runtimeProductFlowClass = computed(() => runtimeProductFlowState.value === 'pass' ? 'pass' : 'partial')
+const runtimeProductFlowClass = computed(() => runtimeProductFlowState.value === 'pass' || runtimeProductFlowState.value === 'run_complete' ? 'pass' : 'partial')
 const runtimeProductFlowText = computed(() => formatRuntimeState(runtimeProductFlowState.value))
+
+const isRunComplete = (project) => {
+  if (!project) return false
+  const current = project.current_round || 0
+  const total = project.total_rounds || 0
+  return project.runner_status === 'completed' || (total > 0 && current >= total)
+}
 
 const formatRuntimeState = (state) => {
   const normalized = state || 'unknown'
   if (normalized === 'pass') return t('history.statusPass')
   if (normalized === 'repaired') return t('history.statusRepaired')
   if (normalized === 'failed') return t('history.statusFailed')
+  if (normalized === 'run_complete') return t('history.statusRunComplete')
   if (normalized === 'partial') return t('history.statusPartial')
   if (normalized === 'pending') return t('history.statusPending')
   if (normalized === 'blocked') return t('history.statusBlocked')
@@ -325,6 +333,7 @@ const projectionVerdictClass = computed(() => graphitiStatus.value.projection_ca
 
 const runtimeStateFor = (project) => {
   if (project?.report_id) return 'pass'
+  if (isRunComplete(project)) return 'run_complete'
   if ((project?.current_round || 0) > 0 || project?.config_generated) return 'partial'
   return 'pending'
 }
@@ -332,6 +341,7 @@ const runtimeStateFor = (project) => {
 const runtimeLabelFor = (project) => {
   const state = runtimeStateFor(project)
   if (state === 'pass') return t('history.flowPass')
+  if (state === 'run_complete') return t('history.flowRunComplete')
   if (state === 'partial') return t('history.flowPartial')
   return t('history.flowPending')
 }

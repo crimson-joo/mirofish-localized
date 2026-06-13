@@ -92,8 +92,9 @@ const viewMode = ref('split')
 
 // Data State
 const currentSimulationId = ref(route.params.simulationId)
-// 直接在初始化时从 query 参数获取 maxRounds，确保子组件能立即获取到值
-const maxRounds = ref(route.query.maxRounds ? parseInt(route.query.maxRounds) : null)
+const DEFAULT_PREVIEW_ROUNDS = 24
+// 직접 Step3 URL로 들어와도 120라운드 전체 실행이 우발적으로 시작되지 않도록 기본은 24라운드 프리뷰로 제한한다.
+const maxRounds = ref(route.query.maxRounds ? parseInt(route.query.maxRounds) : DEFAULT_PREVIEW_ROUNDS)
 const minutesPerRound = ref(30) // 默认每轮30分钟
 const projectData = ref(null)
 const graphData = ref(null)

@@ -12,9 +12,15 @@
 
 ## 브랜치 정책
 
-- `develop`: 기능 통합 기준선
-- `main`: 공개 checkpoint 및 안정 기준선
+- 운영 모델: Medium / Develop Integration Flow
+- `main`: GitHub default branch, 공개 checkpoint 및 안정 기준선
+- `develop`: 기능 통합/QA 기준선
+- `feat/*`, `fix/*`, `docs/*`, `chore/*`: `develop`에서 따는 작업 브랜치/worktree
+- `feature → develop`: agent 작업이 많거나 commit이 noisy하면 squash fan-in 권장
 - `develop → main`: 일반 merge commit 권장
+- 상세 절차: `docs/current/branch-flow.md`
+
+주의: GitHub default branch가 `feat/*`로 바뀌면 PR/CI/Pages 기준이 꼬이므로 `main`으로 유지한다.
 
 ## 배포 대상
 
