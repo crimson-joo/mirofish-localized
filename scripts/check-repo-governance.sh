@@ -4,6 +4,7 @@ set -euo pipefail
 repo="${1:-crimson-joo/mirofish-localized}"
 expected_default="${EXPECTED_DEFAULT_BRANCH:-main}"
 expected_integration="${EXPECTED_INTEGRATION_BRANCH:-develop}"
+required_status_context="${REQUIRED_MAIN_STATUS_CONTEXT:-validate}"
 
 fail=0
 say() { printf '%s\n' "$*"; }
@@ -44,6 +45,42 @@ if command -v gh >/dev/null 2>&1 && gh auth status -h github.com >/dev/null 2>&1
       fail=1
     fi
   done
+
+  if protection_json="$(gh api "repos/$repo/branches/$expected_default/protection" 2>/dev/null)"; then
+    say "PASS $expected_default branch protection is enabled"
+
+    if jq -e --arg context "$required_status_context" '
+      .required_status_checks.strict == true
+      and (.required_status_checks.contexts // [] | index($context))
+    ' >/dev/null <<<"$protection_json"; then
+      say "PASS $expected_default requires up-to-date status check: $required_status_context"
+    else
+      say "FAIL $expected_default missing strict required status check: $required_status_context"
+      fail=1
+    fi
+
+    if jq -e '.required_pull_request_reviews != null' >/dev/null <<<"$protection_json"; then
+      say "PASS $expected_default requires pull request before merge"
+    else
+      say "FAIL $expected_default does not require pull request before merge"
+      fail=1
+    fi
+
+    if jq -e '
+      (.enforce_admins.enabled == true)
+      and (.required_conversation_resolution.enabled == true)
+      and (.allow_force_pushes.enabled == false)
+      and (.allow_deletions.enabled == false)
+    ' >/dev/null <<<"$protection_json"; then
+      say "PASS $expected_default blocks force-push/delete and enforces admin/conversation safeguards"
+    else
+      say "FAIL $expected_default branch protection safeguards are incomplete"
+      fail=1
+    fi
+  else
+    say "FAIL $expected_default branch protection is not enabled or cannot be read"
+    fail=1
+  fi
 else
   say "SKIP GitHub default branch check: gh auth unavailable"
 fi
