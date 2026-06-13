@@ -80,6 +80,8 @@ class MaxTokensWarningFilter(logging.Filter):
 # 在模块加载时立即添加过滤器，确保在 camel 代码执行前生效
 logging.getLogger().addFilter(MaxTokensWarningFilter())
 
+from simulation_language_policy import enforce_prompt_language, localized_profile_path
+
 
 def setup_oasis_logging(log_dir: str):
     """配置 OASIS 的日志，使用固定名称的日志文件"""
@@ -146,10 +148,11 @@ class CommandType:
 class IPCHandler:
     """IPC命令处理器"""
     
-    def __init__(self, simulation_dir: str, env, agent_graph):
+    def __init__(self, simulation_dir: str, env, agent_graph, config: Optional[Dict[str, Any]] = None):
         self.simulation_dir = simulation_dir
         self.env = env
         self.agent_graph = agent_graph
+        self.config = config or {}
         self.commands_dir = os.path.join(simulation_dir, IPC_COMMANDS_DIR)
         self.responses_dir = os.path.join(simulation_dir, IPC_RESPONSES_DIR)
         self.status_file = os.path.join(simulation_dir, ENV_STATUS_FILE)
@@ -225,7 +228,7 @@ class IPCHandler:
             # 创建Interview动作
             interview_action = ManualAction(
                 action_type=ActionType.INTERVIEW,
-                action_args={"prompt": prompt}
+                action_args={"prompt": enforce_prompt_language(prompt, self.config)}
             )
             
             # 执行Interview
@@ -265,7 +268,7 @@ class IPCHandler:
                     agent = self.agent_graph.get_agent(agent_id)
                     actions[agent] = ManualAction(
                         action_type=ActionType.INTERVIEW,
-                        action_args={"prompt": prompt}
+                        action_args={"prompt": enforce_prompt_language(prompt, self.config)}
                     )
                     agent_prompts[agent_id] = prompt
                 except Exception as e:
@@ -576,7 +579,7 @@ class TwitterSimulationRunner:
             return
         
         self.agent_graph = await generate_twitter_agent_graph(
-            profile_path=profile_path,
+            profile_path=localized_profile_path(profile_path, self.config, "twitter"),
             model=model,
             available_actions=self.AVAILABLE_ACTIONS,
         )
@@ -600,7 +603,7 @@ class TwitterSimulationRunner:
         print("环境初始化完成\n")
         
         # 初始化IPC处理器
-        self.ipc_handler = IPCHandler(self.simulation_dir, self.env, self.agent_graph)
+        self.ipc_handler = IPCHandler(self.simulation_dir, self.env, self.agent_graph, self.config)
         self.ipc_handler.update_status("running")
         
         # 执行初始事件

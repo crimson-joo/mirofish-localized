@@ -20,7 +20,7 @@ from openai import OpenAI
 
 from ..config import Config
 from ..utils.logger import get_logger
-from ..utils.locale import get_language_instruction, t
+from ..utils.locale import get_language_instruction, get_locale, t
 from .zep_entity_reader import EntityNode, ZepEntityReader
 
 logger = get_logger('mirofish.simulation_config')
@@ -168,6 +168,8 @@ class SimulationParameters:
     # LLM配置
     llm_model: str = ""
     llm_base_url: str = ""
+    locale: str = "ko"
+    language_instruction: str = ""
     
     # 生成元数据
     generated_at: str = field(default_factory=lambda: datetime.now().isoformat())
@@ -188,6 +190,8 @@ class SimulationParameters:
             "reddit_config": asdict(self.reddit_config) if self.reddit_config else None,
             "llm_model": self.llm_model,
             "llm_base_url": self.llm_base_url,
+            "locale": self.locale,
+            "language_instruction": self.language_instruction,
             "generated_at": self.generated_at,
             "generation_reasoning": self.generation_reasoning,
         }
@@ -371,6 +375,8 @@ class SimulationConfigGenerator:
             reddit_config=reddit_config,
             llm_model=self.model_name,
             llm_base_url=self.base_url,
+            locale=get_locale(),
+            language_instruction=get_language_instruction(),
             generation_reasoning=" | ".join(reasoning_parts)
         )
         
