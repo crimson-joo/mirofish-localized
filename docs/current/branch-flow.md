@@ -107,8 +107,8 @@ gh pr create --base main --head develop --title "Release: <summary>" --body "...
 |---|---|
 | PR to `develop` or `main` | Local Runtime CI: backend tests, frontend build, compose config |
 | push to `develop` | Local Runtime CI |
-| push to `main` | Local Runtime CI + 조건부 Hermes local-runtime webhook |
-| push to `main` with docs/pages/current 변경 | Pages deploy + scripted/browser Pages canary + 조건부 Hermes Pages webhook |
+| push to `main` | Local Runtime CI + 조건부 Hermes local-runtime webhook. Webhook URL/tunnel이 죽어도 테스트 자체는 통과로 유지하고, webhook 단계만 경고/실패 신호로 남긴다. |
+| push to `main` with docs/pages/current 변경 | Pages deploy + scripted/browser Pages canary + 조건부 Hermes Pages webhook. Pages 자체 canary와 webhook 전달 성공은 분리해서 판단한다. |
 | manual workflow_dispatch | 수동 CI / webhook handoff 가능 |
 
 Webhook은 GitHub Actions secret이 설정되어 있을 때만 호출됩니다. GitHub-hosted runner는 사용자의 `localhost`를 직접 검증할 수 없으므로, local runtime canary는 Hermes가 Mac에서 후속 검증하는 구조입니다.

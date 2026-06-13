@@ -69,6 +69,7 @@ jobs:
 
       - name: Notify Hermes local runtime canary if configured
         if: ${{ ((github.event_name == 'push' && github.ref == 'refs/heads/main') || github.event_name == 'workflow_dispatch') && success() }}
+        continue-on-error: true
         env:
           HERMES_LOCAL_RUNTIME_WEBHOOK_URL: ${{ secrets.HERMES_LOCAL_RUNTIME_WEBHOOK_URL }}
           HERMES_WEBHOOK_BASE_URL: ${{ secrets.HERMES_WEBHOOK_BASE_URL }}
