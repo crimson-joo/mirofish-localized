@@ -156,6 +156,7 @@ def init_logging_for_simulation(simulation_dir: str):
 
 
 from action_logger import SimulationLogManager, PlatformActionLogger
+from simulation_language_policy import enforce_prompt_language, localized_profile_path
 
 try:
     from camel.models import ModelFactory
@@ -227,13 +228,15 @@ class ParallelIPCHandler:
         twitter_env=None,
         twitter_agent_graph=None,
         reddit_env=None,
-        reddit_agent_graph=None
+        reddit_agent_graph=None,
+        config: Optional[Dict[str, Any]] = None
     ):
         self.simulation_dir = simulation_dir
         self.twitter_env = twitter_env
         self.twitter_agent_graph = twitter_agent_graph
         self.reddit_env = reddit_env
         self.reddit_agent_graph = reddit_agent_graph
+        self.config = config or {}
         
         self.commands_dir = os.path.join(simulation_dir, IPC_COMMANDS_DIR)
         self.responses_dir = os.path.join(simulation_dir, IPC_RESPONSES_DIR)
@@ -330,7 +333,7 @@ class ParallelIPCHandler:
             agent = agent_graph.get_agent(agent_id)
             interview_action = ManualAction(
                 action_type=ActionType.INTERVIEW,
-                action_args={"prompt": prompt}
+                action_args={"prompt": enforce_prompt_language(prompt, self.config)}
             )
             actions = {agent: interview_action}
             await env.step(actions)
@@ -460,7 +463,7 @@ class ParallelIPCHandler:
                         agent = self.twitter_agent_graph.get_agent(agent_id)
                         twitter_actions[agent] = ManualAction(
                             action_type=ActionType.INTERVIEW,
-                            action_args={"prompt": prompt}
+                            action_args={"prompt": enforce_prompt_language(prompt, self.config)}
                         )
                     except Exception as e:
                         print(f"  警告: 无法获取Twitter Agent {agent_id}: {e}")
@@ -487,7 +490,7 @@ class ParallelIPCHandler:
                         agent = self.reddit_agent_graph.get_agent(agent_id)
                         reddit_actions[agent] = ManualAction(
                             action_type=ActionType.INTERVIEW,
-                            action_args={"prompt": prompt}
+                            action_args={"prompt": enforce_prompt_language(prompt, self.config)}
                         )
                     except Exception as e:
                         print(f"  警告: 无法获取Reddit Agent {agent_id}: {e}")
@@ -1135,6 +1138,7 @@ async def run_twitter_simulation(
         log_info(f"错误: Profile文件不存在: {profile_path}")
         return result
     
+    profile_path = localized_profile_path(profile_path, config, "twitter")
     result.agent_graph = await generate_twitter_agent_graph(
         profile_path=profile_path,
         model=model,
@@ -1326,6 +1330,7 @@ async def run_reddit_simulation(
         log_info(f"错误: Profile文件不存在: {profile_path}")
         return result
     
+    profile_path = localized_profile_path(profile_path, config, "reddit")
     result.agent_graph = await generate_reddit_agent_graph(
         profile_path=profile_path,
         model=model,
@@ -1606,7 +1611,8 @@ async def main():
             twitter_env=twitter_result.env if twitter_result else None,
             twitter_agent_graph=twitter_result.agent_graph if twitter_result else None,
             reddit_env=reddit_result.env if reddit_result else None,
-            reddit_agent_graph=reddit_result.agent_graph if reddit_result else None
+            reddit_agent_graph=reddit_result.agent_graph if reddit_result else None,
+            config=config
         )
         ipc_handler.update_status("alive")
         
