@@ -118,7 +118,10 @@ Webhook은 GitHub Actions secret이 설정되어 있을 때만 호출됩니다. 
 - Default branch: `main`
 - `develop`은 integration branch로 유지
 - stale feature branch는 default나 release 기준으로 쓰지 않고 정리
-- 가능하면 branch protection/required checks는 `main`에 우선 적용
+- `main`은 branch protection을 켜고 직접 push/삭제/force-push를 막습니다.
+- `main` 병합은 PR을 통해 진행하며, required status check는 `validate`입니다.
+- required status check는 최신 base 기준(`strict`)으로 다시 확인한 뒤 병합합니다.
+- PR conversation은 resolve되어야 하며, admin도 같은 보호 규칙을 따릅니다.
 
 ## 현재 로컬 runtime 경로
 
