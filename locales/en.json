@@ -152,12 +152,12 @@
     "setupCompleteDesc": "Simulation environment is ready. You can now start the simulation.",
     "roundsConfig": "Simulation Rounds Configuration",
     "roundsConfigDesc": "MiroFish auto-plans to simulate {hours} real-world hours, each round representing {minutesPerRound} minutes of elapsed time",
-    "customToggle": "Custom",
+    "customToggle": "Set rounds manually",
     "roundsUnit": "rounds",
     "estimatedDuration": "For 100 Agents: est. ~{minutes} minutes",
     "estimatedDurationFull": "For 100 Agents: est. {minutes} minutes",
     "recommendedRounds": "{rounds} (recommended)",
-    "customTip": "For first-time runs, we strongly recommend switching to 'Custom Mode' to reduce rounds for a quick preview and lower error risk",
+    "customTip": "For a full run, turn manual rounds off or move the slider up to 120 before starting",
     "backToGraphBuild": "Back to Graph Build",
     "startDualWorldSim": "Start Dual-World Parallel Simulation",
     "profileModalAge": "Apparent Age",
@@ -180,7 +180,20 @@
     "genderOther": "Other",
     "yearsOld": "years old",
     "initializing": "Initializing",
-    "generating": "Generating"
+    "generating": "Generating",
+    "personaPlanTitle": "Persona generation scope",
+    "personaPlanDesc": "Choose how many Agent Personas to create from the Entities extracted from the seed report.",
+    "personaModeCore": "Core Personas",
+    "personaModeCoreDesc": "Select up to {count} Personas by type diversity and graph connectivity.",
+    "personaModeAll": "Use all Entities",
+    "personaModeAllDesc": "Turn every extracted Entity into a Persona. This can make the run much longer.",
+    "maxPersonaCount": "Max Personas",
+    "graphMemoryDefaultOn": "Graph memory update ON by default",
+    "executionScaleLarge": "Large/long-run mode",
+    "executionScaleBalanced": "Balanced run mode",
+    "startPersonaPreparation": "Start Persona generation with this scope",
+    "extractedEntityCount": "Extracted Entities",
+    "expectedPersonaTotal": "Personas this run"
   },
   "step3": {
     "startGenerateReport": "Generate Report",
@@ -358,7 +371,9 @@
     "step5Short": "Chat",
     "statusRepaired": "Repaired",
     "statusFailed": "Failed",
-    "projectionCache": "Projection cache"
+    "projectionCache": "Projection cache",
+    "statusRunComplete": "Simulation complete / report pending",
+    "flowRunComplete": "Run complete / report pending"
   },
   "api": {
     "projectNotFound": "Project not found: {id}",
@@ -553,8 +568,8 @@
     "timeConfigDetail": "Time config: {minutes} min/round, {rounds} rounds total",
     "narrativeDirection": "Narrative direction: {direction}",
     "envSetupComplete": "✓ Environment setup complete, ready to simulate",
-    "startSimCustomRounds": "Starting simulation, custom rounds: {rounds}",
-    "startSimAutoRounds": "Starting simulation, auto-configured rounds: {rounds}",
+    "startSimCustomRounds": "Starting simulation with selected rounds: {rounds}",
+    "startSimAutoRounds": "Starting simulation with full configured rounds: {rounds}",
     "startGeneratingAgentProfiles": "Generating agent personas...",
     "agentProfile": "→ Agent persona {current}/{total}: {name} ({profession})",
     "allProfilesComplete": "✓ All {count} agent personas generated",
@@ -605,7 +620,10 @@
     "getReportInfoFailed": "Failed to get report info: {error}",
     "enterStep": "Entering Step {step}: {name}",
     "returnToStep": "Returning to Step {step}: {name}",
-    "customSimRounds": "Custom simulation rounds: {rounds} rounds"
+    "customSimRounds": "Custom simulation rounds: {rounds} rounds",
+    "graphMemoryUpdateDisabled": "Dynamic graph memory update disabled (stable run mode)",
+    "personaPlanAwaitingSelection": "Choose a Persona generation scope before preparing the simulation",
+    "personaPlanApplied": "Persona plan applied: {mode}, {count} Personas"
   },
   "report": {
     "taskStarted": "Report generation task started",

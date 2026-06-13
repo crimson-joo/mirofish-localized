@@ -338,6 +338,9 @@ def _check_simulation_prepared(simulation_id: str) -> tuple:
                 "status": status,
                 "entities_count": state_data.get("entities_count", 0),
                 "profiles_count": profiles_count,
+                "selected_entities_count": state_data.get("selected_entities_count", profiles_count),
+                "persona_selection_mode": state_data.get("persona_selection_mode", "core"),
+                "max_agent_personas": state_data.get("max_agent_personas", 30),
                 "entity_types": state_data.get("entity_types", []),
                 "config_generated": config_generated,
                 "created_at": state_data.get("created_at"),
@@ -467,6 +470,13 @@ def prepare_simulation():
         entity_types_list = data.get('entity_types')
         use_llm_for_profiles = data.get('use_llm_for_profiles', True)
         parallel_profile_count = data.get('parallel_profile_count', 5)
+        persona_selection_mode = data.get('persona_selection_mode', 'core')
+        if persona_selection_mode not in ['core', 'all']:
+            persona_selection_mode = 'core'
+        try:
+            max_agent_personas = int(data.get('max_agent_personas', 30))
+        except (TypeError, ValueError):
+            max_agent_personas = 30
         
         # ========== 同步获取实体数量（在后台任务启动前） ==========
         # 这样前端在调用prepare后立即就能获取到预期Agent总数
@@ -480,9 +490,17 @@ def prepare_simulation():
                 enrich_with_edges=False  # 不获取边信息，加快速度
             )
             # 保存实体数量到状态（供前端立即获取）
+            expected_personas_count = (
+                filtered_preview.filtered_count
+                if persona_selection_mode == 'all' or max_agent_personas <= 0
+                else min(filtered_preview.filtered_count, max_agent_personas)
+            )
             state.entities_count = filtered_preview.filtered_count
+            state.selected_entities_count = expected_personas_count
+            state.persona_selection_mode = persona_selection_mode
+            state.max_agent_personas = max_agent_personas
             state.entity_types = list(filtered_preview.entity_types)
-            logger.info(f"预期实体数量: {filtered_preview.filtered_count}, 类型: {filtered_preview.entity_types}")
+            logger.info(f"预期实体数量: {filtered_preview.filtered_count}, 预期Persona: {expected_personas_count}, 类型: {filtered_preview.entity_types}")
         except Exception as e:
             logger.warning(f"同步获取实体数量失败（将在后台任务中重试）: {e}")
             # 失败不影响后续流程，后台任务会重新获取
@@ -587,7 +605,9 @@ def prepare_simulation():
                     defined_entity_types=entity_types_list,
                     use_llm_for_profiles=use_llm_for_profiles,
                     progress_callback=progress_callback,
-                    parallel_profile_count=parallel_profile_count
+                    parallel_profile_count=parallel_profile_count,
+                    persona_selection_mode=persona_selection_mode,
+                    max_agent_personas=max_agent_personas
                 )
                 
                 # 任务完成
@@ -619,7 +639,11 @@ def prepare_simulation():
                 "status": "preparing",
                 "message": t('api.prepareStarted'),
                 "already_prepared": False,
-                "expected_entities_count": state.entities_count,  # 预期的Agent总数
+                "expected_entities_count": state.selected_entities_count or state.entities_count,  # 이번 실행 Persona 수
+                "filtered_entities_count": state.entities_count,  # 그래프에서 추출된 전체 Entity 수
+                "expected_personas_count": state.selected_entities_count or state.entities_count,
+                "persona_selection_mode": state.persona_selection_mode,
+                "max_agent_personas": state.max_agent_personas,
                 "entity_types": state.entity_types  # 实体类型列表
             }
         })
