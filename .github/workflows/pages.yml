@@ -137,6 +137,7 @@ jobs:
           if-no-files-found: ignore
 
       - name: Notify Hermes webhook if configured
+        continue-on-error: true
         env:
           HERMES_WEBHOOK_URL: ${{ secrets.HERMES_WEBHOOK_URL }}
           HERMES_WEBHOOK_SECRET: ${{ secrets.HERMES_WEBHOOK_SECRET }}
