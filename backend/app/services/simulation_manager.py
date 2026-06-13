@@ -14,7 +14,7 @@ from enum import Enum
 
 from ..config import Config
 from ..utils.logger import get_logger
-from .zep_entity_reader import FilteredEntities
+from .zep_entity_reader import FilteredEntities, EntityNode
 from .graph_provider import get_entity_reader
 from .oasis_profile_generator import OasisProfileGenerator, OasisAgentProfile
 from .simulation_config_generator import SimulationConfigGenerator, SimulationParameters
@@ -59,6 +59,9 @@ class SimulationState:
     entities_count: int = 0
     profiles_count: int = 0
     entity_types: List[str] = field(default_factory=list)
+    persona_selection_mode: str = "core"
+    max_agent_personas: int = 30
+    selected_entities_count: int = 0
     
     # 配置生成信息
     config_generated: bool = False
@@ -88,6 +91,9 @@ class SimulationState:
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "persona_selection_mode": self.persona_selection_mode,
+            "max_agent_personas": self.max_agent_personas,
+            "selected_entities_count": self.selected_entities_count,
             "config_generated": self.config_generated,
             "config_reasoning": self.config_reasoning,
             "current_round": self.current_round,
@@ -108,6 +114,9 @@ class SimulationState:
             "entities_count": self.entities_count,
             "profiles_count": self.profiles_count,
             "entity_types": self.entity_types,
+            "persona_selection_mode": self.persona_selection_mode,
+            "max_agent_personas": self.max_agent_personas,
+            "selected_entities_count": self.selected_entities_count,
             "config_generated": self.config_generated,
             "error": self.error,
         }
@@ -179,6 +188,9 @@ class SimulationManager:
             entities_count=data.get("entities_count", 0),
             profiles_count=data.get("profiles_count", 0),
             entity_types=data.get("entity_types", []),
+            persona_selection_mode=data.get("persona_selection_mode", "core"),
+            max_agent_personas=data.get("max_agent_personas", 30),
+            selected_entities_count=data.get("selected_entities_count", data.get("profiles_count", 0)),
             config_generated=data.get("config_generated", False),
             config_reasoning=data.get("config_reasoning", ""),
             current_round=data.get("current_round", 0),
@@ -222,11 +234,65 @@ class SimulationManager:
             enable_reddit=enable_reddit,
             status=SimulationStatus.CREATED,
         )
-        
         self._save_simulation_state(state)
+        
         logger.info(f"创建模拟: {simulation_id}, project={project_id}, graph={graph_id}")
         
         return state
+
+    @staticmethod
+    def _select_entities_for_personas(entities: List[EntityNode], mode: str = "core", max_agent_personas: int = 30) -> List[EntityNode]:
+        """Select entities that become simulation personas.
+
+        core mode keeps type diversity while prioritizing graph-connected entities.
+        all mode preserves the original one-entity-one-persona behavior.
+        """
+        if mode == "all" or max_agent_personas <= 0 or len(entities) <= max_agent_personas:
+            return entities
+
+        def score(entity: EntityNode) -> tuple:
+            return (
+                len(entity.related_edges or []),
+                len(entity.related_nodes or []),
+                len(entity.summary or ""),
+                entity.name or "",
+            )
+
+        by_type: Dict[str, List[EntityNode]] = {}
+        for entity in entities:
+            etype = entity.get_entity_type() or "Unknown"
+            by_type.setdefault(etype, []).append(entity)
+
+        for typed_entities in by_type.values():
+            typed_entities.sort(key=score, reverse=True)
+
+        selected: List[EntityNode] = []
+        selected_ids = set()
+        ordered_types = sorted(by_type.keys(), key=lambda t: len(by_type[t]), reverse=True)
+
+        # First pass: round-robin by type, so small but important actor types survive.
+        while len(selected) < max_agent_personas:
+            added = False
+            for etype in ordered_types:
+                candidates = by_type[etype]
+                if candidates:
+                    entity = candidates.pop(0)
+                    if entity.uuid not in selected_ids:
+                        selected.append(entity)
+                        selected_ids.add(entity.uuid)
+                        added = True
+                        if len(selected) >= max_agent_personas:
+                            break
+            if not added:
+                break
+
+        # Safety fill: highest-degree remaining entities.
+        if len(selected) < max_agent_personas:
+            remaining = [e for e in entities if e.uuid not in selected_ids]
+            remaining.sort(key=score, reverse=True)
+            selected.extend(remaining[:max_agent_personas - len(selected)])
+
+        return selected
     
     def prepare_simulation(
         self,
@@ -236,7 +302,9 @@ class SimulationManager:
         defined_entity_types: Optional[List[str]] = None,
         use_llm_for_profiles: bool = True,
         progress_callback: Optional[callable] = None,
-        parallel_profile_count: int = 3
+        parallel_profile_count: int = 3,
+        persona_selection_mode: str = "core",
+        max_agent_personas: int = 30
     ) -> SimulationState:
         """
         准备模拟环境（全程自动化）
@@ -287,6 +355,14 @@ class SimulationManager:
             
             state.entities_count = filtered.filtered_count
             state.entity_types = list(filtered.entity_types)
+            state.persona_selection_mode = persona_selection_mode if persona_selection_mode in ["core", "all"] else "core"
+            state.max_agent_personas = max_agent_personas
+            selected_entities = self._select_entities_for_personas(
+                filtered.entities,
+                mode=state.persona_selection_mode,
+                max_agent_personas=max_agent_personas
+            )
+            state.selected_entities_count = len(selected_entities)
             
             if progress_callback:
                 progress_callback(
@@ -303,7 +379,7 @@ class SimulationManager:
                 return state
             
             # ========== 阶段2: 生成Agent Profile ==========
-            total_entities = len(filtered.entities)
+            total_entities = len(selected_entities)
             
             if progress_callback:
                 progress_callback(
@@ -338,7 +414,7 @@ class SimulationManager:
                 realtime_platform = "twitter"
             
             profiles = generator.generate_profiles_from_entities(
-                entities=filtered.entities,
+                entities=selected_entities,
                 use_llm=use_llm_for_profiles,
                 progress_callback=profile_progress,
                 graph_id=state.graph_id,  # 传入graph_id用于Zep检索
@@ -407,7 +483,7 @@ class SimulationManager:
                 graph_id=state.graph_id,
                 simulation_requirement=simulation_requirement,
                 document_text=document_text,
-                entities=filtered.entities,
+                entities=selected_entities,
                 enable_twitter=state.enable_twitter,
                 enable_reddit=state.enable_reddit
             )
@@ -444,7 +520,7 @@ class SimulationManager:
             self._save_simulation_state(state)
             
             logger.info(f"模拟准备完成: {simulation_id}, "
-                       f"entities={state.entities_count}, profiles={state.profiles_count}")
+                       f"entities={state.entities_count}, selected={state.selected_entities_count}, profiles={state.profiles_count}")
             
             return state
             

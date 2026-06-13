@@ -152,12 +152,12 @@
     "setupCompleteDesc": "模拟环境已准备完成，可以开始运行模拟",
     "roundsConfig": "模拟轮数设定",
     "roundsConfigDesc": "MiroFish 自动规划推演现实 {hours} 小时，每轮代表现实 {minutesPerRound} 分钟时间流逝",
-    "customToggle": "自定义",
+    "customToggle": "手动设置轮数",
     "roundsUnit": "轮",
     "estimatedDuration": "若Agent规模为100：预计耗时约 {minutes} 分钟",
     "estimatedDurationFull": "若Agent规模为100：预计耗时 {minutes} 分钟",
     "recommendedRounds": "{rounds} (推荐)",
-    "customTip": "若首次运行，强烈建议切换至'自定义模式'减少模拟轮数，以便快速预览效果并降低报错风险",
+    "customTip": "如需完整运行，可关闭手动轮数或将滑块调到 120 后启动",
     "backToGraphBuild": "返回图谱构建",
     "startDualWorldSim": "开始双世界并行模拟",
     "profileModalAge": "事件外显年龄",
@@ -180,7 +180,20 @@
     "genderOther": "其他",
     "yearsOld": "岁",
     "initializing": "初始化",
-    "generating": "生成中"
+    "generating": "生成中",
+    "personaPlanTitle": "Persona 生成范围",
+    "personaPlanDesc": "根据种子报告提取出的实体（Entity），选择本次运行要生成的 Agent Persona 范围。",
+    "personaModeCore": "核心 Persona",
+    "personaModeCoreDesc": "按类型多样性和图谱连接度最多选择 {count} 个 Persona。",
+    "personaModeAll": "使用全部 Entity",
+    "personaModeAllDesc": "将所有提取出的 Entity 都作为 Persona，运行时间可能明显增加。",
+    "maxPersonaCount": "最大 Persona 数",
+    "graphMemoryDefaultOn": "Graph memory update 默认开启",
+    "executionScaleLarge": "大规模/长运行模式",
+    "executionScaleBalanced": "均衡运行模式",
+    "startPersonaPreparation": "按此范围开始生成 Persona",
+    "extractedEntityCount": "提取 Entity",
+    "expectedPersonaTotal": "本次运行 Persona"
   },
   "step3": {
     "startGenerateReport": "开始生成结果报告",
@@ -358,7 +371,9 @@
     "step5Short": "对话",
     "statusRepaired": "已修复处理",
     "statusFailed": "失败",
-    "projectionCache": "投影缓存"
+    "projectionCache": "投影缓存",
+    "statusRunComplete": "模拟完成 / 报告待生成",
+    "flowRunComplete": "运行完成 / 报告待生成"
   },
   "api": {
     "projectNotFound": "项目不存在: {id}",
@@ -553,8 +568,8 @@
     "timeConfigDetail": "时间配置: 每轮{minutes}分钟, 共{rounds}轮",
     "narrativeDirection": "叙事方向: {direction}",
     "envSetupComplete": "✓ 环境搭建完成，可以开始模拟",
-    "startSimCustomRounds": "开始模拟，自定义轮数: {rounds} 轮",
-    "startSimAutoRounds": "开始模拟，使用自动配置轮数: {rounds} 轮",
+    "startSimCustomRounds": "按所选轮数开始模拟: {rounds} 轮",
+    "startSimAutoRounds": "按完整配置轮数开始模拟: {rounds} 轮",
     "startGeneratingAgentProfiles": "开始生成Agent人设...",
     "agentProfile": "→ Agent人设 {current}/{total}: {name} ({profession})",
     "allProfilesComplete": "✓ 全部 {count} 个Agent人设生成完成",
@@ -605,7 +620,10 @@
     "getReportInfoFailed": "获取报告信息失败: {error}",
     "enterStep": "进入 Step {step}: {name}",
     "returnToStep": "返回 Step {step}: {name}",
-    "customSimRounds": "自定义模拟轮数: {rounds} 轮"
+    "customSimRounds": "自定义模拟轮数: {rounds} 轮",
+    "graphMemoryUpdateDisabled": "动态图谱更新已关闭（稳定运行模式）",
+    "personaPlanAwaitingSelection": "请先选择 Persona 生成范围，再开始准备模拟",
+    "personaPlanApplied": "Persona 计划已应用：{mode}，{count} 个"
   },
   "report": {
     "taskStarted": "报告生成任务开始",
