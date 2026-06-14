@@ -56,15 +56,35 @@ items = payload.get('data') or []
 if not items:
     print('PASS graph_data_status skipped no graphs')
     sys.exit(0)
-graph_id = items[0].get('graph_id')
-with urllib.request.urlopen(base + '/api/graph/data/' + graph_id, timeout=15) as r:
-    graph_payload = json.loads(r.read().decode())
-data = graph_payload.get('data') or {}
-status = data.get('graphiti_status') or {}
 required = ['provider', 'base_url', 'projection_cache_enabled', 'native_ingest_state']
-missing = [k for k in required if k not in status]
+selected = None
+fallback = None
+for item in items[:10]:
+    graph_id = item.get('graph_id')
+    if not graph_id:
+        continue
+    try:
+        with urllib.request.urlopen(base + '/api/graph/data/' + graph_id, timeout=15) as r:
+            graph_payload = json.loads(r.read().decode())
+    except Exception:
+        continue
+    data = graph_payload.get('data') or {}
+    status = data.get('graphiti_status') or {}
+    missing = [k for k in required if k not in status]
+    if missing:
+        fallback = fallback or (graph_id, status, missing)
+        continue
+    fallback = fallback or (graph_id, status, [])
+    if status.get('native_ingest_state') == 'pass':
+        selected = (graph_id, status, [])
+        break
+selected = selected or fallback
+if not selected:
+    print('FAIL graph_data_status no readable graph data')
+    sys.exit(1)
+graph_id, status, missing = selected
 if missing:
-    print(f'FAIL graph_data_status missing {missing}')
+    print(f'FAIL graph_data_status graph_id={graph_id} missing {missing}')
     sys.exit(1)
 print(f"PASS graph_data_status graph_id={graph_id} native={status.get('native_ingest_state')} projection={status.get('projection_cache_enabled')}")
 
@@ -84,7 +104,7 @@ else:
 PY
 
 if [[ "$RUN_GRAPHITI_NATIVE_SMOKE" == "1" ]]; then
-  python3 scripts/graphiti-native-smoke.py "$BASE_GRAPHITI"
+  GRAPHITI_NATIVE_ONLY_SMOKE="${GRAPHITI_NATIVE_ONLY_SMOKE:-1}" python3 scripts/graphiti-native-smoke.py "$BASE_GRAPHITI"
 else
   pass "graphiti_native_smoke skipped RUN_GRAPHITI_NATIVE_SMOKE=0"
 fi

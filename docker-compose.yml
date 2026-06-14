@@ -59,6 +59,8 @@ services:
       MODEL_NAME: ${GRAPH_MEMORY_MODEL_NAME:-${LLM_MODEL_NAME:-gpt-5.5}}
       # Optional: point Graphiti's small-model extraction pass at a stricter structured-output model.
       GRAPH_MEMORY_SMALL_MODEL_NAME: ${GRAPH_MEMORY_SMALL_MODEL_NAME:-${GRAPH_MEMORY_MODEL_NAME:-${LLM_MODEL_NAME:-gpt-5.5}}}
+      # A/B hardening switch: 1 keeps MiroFish's schema normalizer ON; 0 reverts to upstream beta-parse behavior.
+      GRAPHITI_STRUCTURED_NORMALIZATION: ${GRAPHITI_STRUCTURED_NORMALIZATION:-1}
       EMBEDDING_MODEL_NAME: ${GRAPH_MEMORY_EMBEDDING_MODEL_NAME:-${EMBEDDING_MODEL_NAME:-jina-embeddings-v5-small}}
       EMBEDDING_BASE_URL: ${GRAPH_MEMORY_EMBEDDING_BASE_URL:-${EMBEDDING_BASE_URL:-http://host.docker.internal:8089/v1}}
       EMBEDDING_API_KEY: ${GRAPH_MEMORY_EMBEDDING_API_KEY:-${EMBEDDING_API_KEY:-local-no-auth}}

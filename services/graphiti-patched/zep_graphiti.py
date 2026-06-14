@@ -183,21 +183,28 @@ class MiroFishStructuredOpenAIClient(OpenAIClient):
         return response_model.model_validate(normalized).model_dump()
 
 
+def _structured_normalization_enabled() -> bool:
+    return os.environ.get('GRAPHITI_STRUCTURED_NORMALIZATION', '1').lower() not in {'0', 'false', 'no', 'off'}
+
+
 def _openai_llm_client(settings: ZepEnvDep) -> OpenAIClient:
     """Build Graphiti's extraction LLM client from explicit graph-memory env.
 
     Graphiti native extraction is stricter than MiroFish chat completion usage.
     Keeping this client explicit makes it possible to point Graphiti at a
     stronger structured-output model without changing the app-facing LLM.
+    `GRAPHITI_STRUCTURED_NORMALIZATION=0` intentionally restores upstream
+    beta-parse behavior so the A/B harness can compare old vs improved paths.
     """
-    return MiroFishStructuredOpenAIClient(
-        config=LLMConfig(
-            api_key=os.environ.get('GRAPH_MEMORY_OPENAI_API_KEY') or settings.openai_api_key,
-            base_url=os.environ.get('GRAPH_MEMORY_OPENAI_BASE_URL') or settings.openai_base_url,
-            model=os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
-            small_model=os.environ.get('GRAPH_MEMORY_SMALL_MODEL_NAME') or os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
-        )
+    config = LLMConfig(
+        api_key=os.environ.get('GRAPH_MEMORY_OPENAI_API_KEY') or settings.openai_api_key,
+        base_url=os.environ.get('GRAPH_MEMORY_OPENAI_BASE_URL') or settings.openai_base_url,
+        model=os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
+        small_model=os.environ.get('GRAPH_MEMORY_SMALL_MODEL_NAME') or os.environ.get('GRAPH_MEMORY_MODEL_NAME') or settings.model_name,
     )
+    if not _structured_normalization_enabled():
+        return OpenAIClient(config=config)
+    return MiroFishStructuredOpenAIClient(config=config)
 
 
 class ZepGraphiti(Graphiti):
