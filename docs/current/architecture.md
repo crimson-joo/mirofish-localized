@@ -32,3 +32,21 @@ Graphiti ingest/search 실패는 로컬 fallback으로 조용히 성공 처리�
 ## Group cleanup
 
 그래프 삭제 시 Graphiti group 삭제 API를 호출한 뒤 projection cache를 삭제합니다. 세션/그래프 단위 group_id는 graph_id를 기준으로 분리합니다.
+
+## Multiverse Simulation MVP
+
+단일 simulation을 보존하면서 상위 ensemble 계층을 추가합니다.
+
+```text
+MultiverseManager
+→ MultiverseExperiment (mv_*)
+→ UniverseChild[] (u1..uN)
+→ 기존 SimulationManager child simulation (sim_*)
+→ aggregate_experiment() ensemble_frequency 요약
+```
+
+- 저장 위치: `uploads/multiverses/<mv_id>/experiment.json`
+- 각 child simulation에는 `uploads/simulations/<sim_id>/multiverse_context.json`을 저장합니다.
+- 기본값: `universe_count=5`, `max_parallel=2`, `rounds=24`, `variation_mode=realistic`, `persona_selection_mode=core`, `graph_memory_enabled=true`.
+- `probability_note`는 결과를 실제 확률이 아니라 `ensemble_frequency`로 명시합니다.
+- 기존 prepare/start/report 경로는 child `simulation_id` 단위로 그대로 재사용하고, 상위 aggregate/report 확장은 `mv_*` 단위에서 수행합니다.

@@ -11,6 +11,7 @@
 3. Graphiti ingest/search 실패가 fallback provider로 가려지지 않고 `pass/repaired/failed`로 드러난다.
 4. 세션/그래프별 group_id 삭제 시 Graphiti group cleanup과 projection cache cleanup이 함께 수행된다.
 5. GitHub Pages는 전체 앱 배포가 아니라 정적 체크포인트/문서 페이지임을 명확히 보여준다.
+6. Multiverse Simulation MVP는 하나의 graph/topic에서 여러 universe child simulation을 만들고, status frequency를 실제 확률이 아닌 `ensemble_frequency`로 집계한다.
 
 ## 로컬 QA 기준
 
@@ -21,6 +22,8 @@
 - Console: blocker JS error 없음
 - Smoke: `./scripts/local-smoke.sh` PASS
 - Native extraction gate: `GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py` PASS 또는 명확한 BLOCKED 사유
+- Multiverse focused tests: `cd backend && uv run pytest tests/test_multiverse_manager.py tests/test_route_smoke.py -q` PASS
+- Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/api/simulation/multiverse/<mv_id>/aggregate`가 실험/child simulation/aggregate shape을 반환해야 합니다.
 
 ## Pages Canary 기준
 

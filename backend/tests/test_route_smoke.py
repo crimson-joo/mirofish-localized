@@ -17,8 +17,17 @@ class RouteSmokeTest(unittest.TestCase):
         Config.GRAPH_PROVIDER = "graphiti"
         Config.GRAPHITI_BASE_URL = "http://127.0.0.1:1"
         Config.LOCAL_GRAPH_STORAGE_DIR = self.tmpdir.name
+        Config.UPLOAD_FOLDER = self.tmpdir.name
+        Config.OASIS_SIMULATION_DATA_DIR = os.path.join(self.tmpdir.name, "simulations")
         Config.LLM_API_KEY = "dummy"
         Config.ZEP_API_KEY = None
+
+        from app.models.project import ProjectManager
+        from app.services.simulation_manager import SimulationManager
+        from app.services.multiverse_manager import MultiverseManager
+        ProjectManager.PROJECTS_DIR = os.path.join(self.tmpdir.name, "projects")
+        SimulationManager.SIMULATION_DATA_DIR = Config.OASIS_SIMULATION_DATA_DIR
+        MultiverseManager.MULTIVERSE_DATA_DIR = os.path.join(self.tmpdir.name, "multiverses")
 
         from app import create_app
         self.app = create_app()
@@ -81,6 +90,53 @@ class RouteSmokeTest(unittest.TestCase):
         response = self.client.get("/api/report/list")
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()["success"])
+
+    def test_multiverse_create_get_list_and_aggregate_routes(self):
+        from app.models.project import ProjectManager
+        from app.models.project import ProjectStatus
+        from app.services.simulation_manager import SimulationManager, SimulationStatus
+
+        project = ProjectManager.create_project("multiverse route smoke")
+        project.status = ProjectStatus.GRAPH_COMPLETED
+        project.graph_id = "graph_route_demo"
+        project.simulation_requirement = "원화 스테이블코인 법안 통과 후 시장 반응"
+        ProjectManager.save_project(project)
+
+        response = self.client.post("/api/simulation/multiverse/create", json={
+            "project_id": project.project_id,
+            "universe_count": 2,
+            "max_parallel": 2,
+            "rounds": 24,
+            "persona_selection_mode": "core",
+            "graph_memory_enabled": True,
+        })
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["success"])
+        experiment = payload["data"]
+        self.assertEqual(experiment["universe_count"], 2)
+        self.assertEqual(len(experiment["children"]), 2)
+
+        get_response = self.client.get(f"/api/simulation/multiverse/{experiment['multiverse_id']}")
+        self.assertEqual(get_response.status_code, 200)
+        self.assertTrue(get_response.get_json()["success"])
+
+        list_response = self.client.get(f"/api/simulation/multiverse/list?project_id={project.project_id}")
+        self.assertEqual(list_response.status_code, 200)
+        self.assertEqual(list_response.get_json()["count"], 1)
+
+        sim_manager = SimulationManager()
+        for child in experiment["children"]:
+            state = sim_manager.get_simulation(child["simulation_id"])
+            assert state is not None
+            state.status = SimulationStatus.COMPLETED
+            sim_manager._save_simulation_state(state)
+
+        aggregate_response = self.client.post(f"/api/simulation/multiverse/{experiment['multiverse_id']}/aggregate")
+        self.assertEqual(aggregate_response.status_code, 200)
+        aggregate = aggregate_response.get_json()["data"]["aggregate"]
+        self.assertEqual(aggregate["completed_count"], 2)
+        self.assertIn("ensemble_frequency", aggregate["probability_note"])
 
 
 if __name__ == "__main__":

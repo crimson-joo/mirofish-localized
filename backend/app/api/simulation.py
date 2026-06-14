@@ -13,6 +13,7 @@ from ..services.graph_provider import get_entity_reader, is_zep_provider
 from ..services.oasis_profile_generator import OasisProfileGenerator
 from ..services.simulation_manager import SimulationManager, SimulationStatus
 from ..services.simulation_runner import SimulationRunner, RunnerStatus
+from ..services.multiverse_manager import MultiverseManager
 from ..utils.logger import get_logger
 from ..utils.locale import t, get_locale, set_locale
 from ..models.project import ProjectManager
@@ -2763,3 +2764,110 @@ def close_simulation_env():
             "error": str(e),
             "traceback": traceback.format_exc()
         }), 500
+
+
+# ============== Multiverse / ensemble simulation interfaces ==============
+
+@simulation_bp.route('/multiverse/create', methods=['POST'])
+def create_multiverse_experiment():
+    """Create a multiverse parent and child simulation shells."""
+    try:
+        data = request.get_json() or {}
+        project_id = data.get('project_id')
+        if not project_id:
+            return jsonify({"success": False, "error": t('api.requireProjectId')}), 400
+
+        project = ProjectManager.get_project(project_id)
+        if not project:
+            return jsonify({"success": False, "error": t('api.projectNotFound', id=project_id)}), 404
+
+        graph_id = data.get('graph_id') or project.graph_id
+        if not graph_id:
+            return jsonify({"success": False, "error": t('api.graphNotBuilt')}), 400
+
+        base_requirement = (
+            data.get('base_requirement')
+            or data.get('simulation_requirement')
+            or project.simulation_requirement
+            or ''
+        )
+        if not base_requirement:
+            return jsonify({"success": False, "error": t('api.requireSimulationRequirement')}), 400
+
+        manager = MultiverseManager()
+        experiment = manager.create_experiment(
+            project_id=project_id,
+            graph_id=graph_id,
+            base_requirement=base_requirement,
+            universe_count=data.get('universe_count', 5),
+            max_parallel=data.get('max_parallel', 2),
+            rounds=data.get('rounds', 24),
+            variation_mode=data.get('variation_mode', 'realistic'),
+            persona_selection_mode=data.get('persona_selection_mode', 'core'),
+            max_agent_personas=data.get('max_agent_personas', 30),
+            graph_memory_enabled=data.get('graph_memory_enabled', True),
+            enable_twitter=data.get('enable_twitter', True),
+            enable_reddit=data.get('enable_reddit', True),
+        )
+        return jsonify({"success": True, "data": experiment.to_dict()})
+
+    except Exception as e:
+        logger.error(f"创建Multiverse实验失败: {str(e)}")
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "traceback": traceback.format_exc()
+        }), 500
+
+
+@simulation_bp.route('/multiverse/<multiverse_id>', methods=['GET'])
+def get_multiverse_experiment(multiverse_id: str):
+    """Get a multiverse experiment by id."""
+    try:
+        manager = MultiverseManager()
+        experiment = manager.get_experiment(multiverse_id)
+        if not experiment:
+            return jsonify({"success": False, "error": f"Multiverse not found: {multiverse_id}"}), 404
+        return jsonify({"success": True, "data": experiment.to_dict()})
+    except Exception as e:
+        logger.error(f"获取Multiverse实验失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@simulation_bp.route('/multiverse/list', methods=['GET'])
+def list_multiverse_experiments():
+    """List multiverse experiments, optionally scoped to project_id."""
+    try:
+        project_id = request.args.get('project_id')
+        limit = request.args.get('limit', 50, type=int)
+        manager = MultiverseManager()
+        experiments = manager.list_experiments(project_id=project_id, limit=limit)
+        return jsonify({
+            "success": True,
+            "data": [experiment.to_dict() for experiment in experiments],
+            "count": len(experiments),
+        })
+    except Exception as e:
+        logger.error(f"列出Multiverse实验失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@simulation_bp.route('/multiverse/<multiverse_id>/aggregate', methods=['POST', 'GET'])
+def aggregate_multiverse_experiment(multiverse_id: str):
+    """Generate/refresh ensemble-frequency aggregate for an experiment."""
+    try:
+        manager = MultiverseManager()
+        aggregate = manager.aggregate_experiment(multiverse_id)
+        experiment = manager.get_experiment(multiverse_id)
+        return jsonify({
+            "success": True,
+            "data": {
+                "experiment": experiment.to_dict() if experiment else None,
+                "aggregate": aggregate,
+            }
+        })
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"聚合Multiverse实验失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
