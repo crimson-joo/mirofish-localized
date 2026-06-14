@@ -80,7 +80,33 @@ RUN_GRAPHITI_NATIVE_SMOKE=0 ./scripts/local-smoke.sh
 GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py
 ```
 
-이 모드는 `/messages` 결과가 `native>=1, repaired=0`일 때만 PASS입니다. 현재 로컬 endpoint가 strict structured-output schema를 만족하지 못하면 FAIL이 정상이며, 그 경우 `GRAPH_MEMORY_MODEL_NAME` 또는 `GRAPH_MEMORY_SMALL_MODEL_NAME`을 structured-output에 강한 모델 endpoint로 바꿔 재검증합니다.
+이 모드는 `/messages` 결과가 `native>=1, repaired=0`일 때만 PASS입니다.
+
+동일 입력으로 이전 방식과 개선 방식을 비교하려면 A/B harness를 실행합니다.
+
+```bash
+./scripts/graphiti-extraction-ab.py
+```
+
+이 스크립트는 `graph-memory` 서비스만 두 번 재생성해서 비교합니다.
+
+```text
+A. GRAPHITI_STRUCTURED_NORMALIZATION=0
+   - upstream OpenAI beta-parse 방식
+   - 실패 시 native repair fact로 보수적 저장
+
+B. GRAPHITI_STRUCTURED_NORMALIZATION=1
+   - MiroFish schema normalization 방식
+   - Graphiti add_episode native pipeline 유지
+   - native>=1, repaired=0, facts>0이면 개선 PASS
+```
+
+기대 판정 예:
+
+```text
+A_legacy     REPAIRED     native=0 repaired=1 facts=1
+B_normalized NATIVE_PASS  native=1 repaired=0 facts=7
+```
 
 선택적으로 mini graph build smoke를 붙일 수 있지만, LLM token/시간을 쓰므로 기본값은 skip입니다.
 
