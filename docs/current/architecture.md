@@ -49,4 +49,9 @@ MultiverseManager
 - 각 child simulation에는 `uploads/simulations/<sim_id>/multiverse_context.json`을 저장합니다.
 - 기본값: `universe_count=5`, `max_parallel=2`, `rounds=24`, `variation_mode=realistic`, `persona_selection_mode=core`, `graph_memory_enabled=true`.
 - `probability_note`는 결과를 실제 확률이 아니라 `ensemble_frequency`로 명시합니다.
+- `prepare_experiment()`는 각 child simulation에 scenario/persona overlay를 주입해 준비합니다.
+- `start_experiment()`는 `max_parallel` 슬롯만 실행하고 나머지 child를 `queued` 상태로 남깁니다.
+- `aggregate_experiment()`는 status frequency, sensitivity axes, outcome clusters, ensemble report markdown을 생성합니다.
+- API 확장: `/multiverse/<mv_id>/prepare`, `/start`, `/status`, `/report`.
+- UI 확장: `/multiverse/:multiverseId` dashboard에서 universe list/status/progress/aggregate/report를 표시합니다.
 - 기존 prepare/start/report 경로는 child `simulation_id` 단위로 그대로 재사용하고, 상위 aggregate/report 확장은 `mv_*` 단위에서 수행합니다.

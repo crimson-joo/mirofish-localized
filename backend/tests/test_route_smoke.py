@@ -138,6 +138,74 @@ class RouteSmokeTest(unittest.TestCase):
         self.assertEqual(aggregate["completed_count"], 2)
         self.assertIn("ensemble_frequency", aggregate["probability_note"])
 
+    def test_multiverse_prepare_start_status_and_report_routes(self):
+        from app.models.project import ProjectManager, ProjectStatus
+        from app.services.simulation_manager import SimulationManager, SimulationStatus
+
+        project = ProjectManager.create_project("multiverse orchestration route")
+        project.status = ProjectStatus.GRAPH_COMPLETED
+        project.graph_id = "graph_route_demo"
+        project.simulation_requirement = "AI 규제 이슈"
+        ProjectManager.save_project(project)
+
+        create_response = self.client.post("/api/simulation/multiverse/create", json={
+            "project_id": project.project_id,
+            "universe_count": 3,
+            "max_parallel": 2,
+            "graph_memory_enabled": True,
+        })
+        experiment = create_response.get_json()["data"]
+        mv_id = experiment["multiverse_id"]
+
+        def fake_prepare(self, simulation_id, simulation_requirement, document_text, **kwargs):
+            state = self.get_simulation(simulation_id)
+            assert state is not None
+            state.status = SimulationStatus.READY
+            state.config_generated = True
+            state.config_reasoning = simulation_requirement
+            self._save_simulation_state(state)
+            return state
+
+        with patch("app.services.simulation_manager.SimulationManager.prepare_simulation", fake_prepare):
+            prepare_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/prepare", json={
+                "document_text": "source",
+                "use_llm_for_profiles": False,
+            })
+        self.assertEqual(prepare_response.status_code, 200)
+        self.assertEqual(prepare_response.get_json()["data"]["prepared_count"], 3)
+
+        sim_manager = SimulationManager()
+
+        def fake_start(**kwargs):
+            state = sim_manager.get_simulation(kwargs["simulation_id"])
+            assert state is not None
+            state.status = SimulationStatus.RUNNING
+            sim_manager._save_simulation_state(state)
+            return type("RunState", (), {"to_dict": lambda self: {"runner_status": "running"}})()
+
+        with patch("app.services.multiverse_manager.SimulationRunner.start_simulation", side_effect=fake_start):
+            start_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/start", json={"platform": "parallel"})
+        self.assertEqual(start_response.status_code, 200)
+        self.assertEqual(start_response.get_json()["data"]["started_count"], 2)
+        self.assertEqual(start_response.get_json()["data"]["queued_count"], 1)
+
+        status_response = self.client.get(f"/api/simulation/multiverse/{mv_id}/status")
+        self.assertEqual(status_response.status_code, 200)
+        self.assertTrue(status_response.get_json()["success"])
+
+        for child in experiment["children"]:
+            state = sim_manager.get_simulation(child["simulation_id"])
+            assert state is not None
+            state.status = SimulationStatus.COMPLETED
+            state.config_reasoning = "은행권 방어 행동 강화"
+            sim_manager._save_simulation_state(state)
+
+        report_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/report")
+        self.assertEqual(report_response.status_code, 200)
+        report = report_response.get_json()["data"]["report_markdown"]
+        self.assertIn("ensemble_frequency", report)
+        self.assertIn("실제 확률", report)
+
 
 if __name__ == "__main__":
     unittest.main()
