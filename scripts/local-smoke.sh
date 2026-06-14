@@ -104,7 +104,7 @@ else:
 PY
 
 if [[ "$RUN_GRAPHITI_NATIVE_SMOKE" == "1" ]]; then
-  python3 scripts/graphiti-native-smoke.py "$BASE_GRAPHITI"
+  GRAPHITI_NATIVE_ONLY_SMOKE="${GRAPHITI_NATIVE_ONLY_SMOKE:-1}" python3 scripts/graphiti-native-smoke.py "$BASE_GRAPHITI"
 else
   pass "graphiti_native_smoke skipped RUN_GRAPHITI_NATIVE_SMOKE=0"
 fi
