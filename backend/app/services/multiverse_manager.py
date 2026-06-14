@@ -21,7 +21,8 @@ from typing import Any, Dict, List, Optional
 
 from ..config import Config
 from ..utils.logger import get_logger
-from .simulation_manager import SimulationManager
+from .simulation_manager import SimulationManager, SimulationStatus
+from .simulation_runner import RunnerStatus, SimulationRunner
 
 logger = get_logger("mirofish.multiverse")
 
@@ -352,6 +353,286 @@ class MultiverseManager:
         )
         return experiment
 
+    def _build_child_requirement(self, experiment: MultiverseExperiment, child: UniverseChild) -> str:
+        """Merge the base topic with a universe scenario/persona overlay."""
+        constraints = "\n".join(f"- {item}" for item in child.persona_variation.get("constraints", []))
+        return (
+            f"{experiment.base_requirement}\n\n"
+            f"## Multiverse Universe Overlay\n"
+            f"Universe: {child.universe_id} / {child.name}\n"
+            f"Scenario axis: {child.scenario_variant.get('label')} ({child.scenario_variant.get('axis')})\n"
+            f"Polarity: {child.scenario_variant.get('polarity')}\n"
+            f"Assumption: {child.scenario_variant.get('assumption')}\n"
+            f"Prompt overlay: {child.scenario_variant.get('prompt_overlay')}\n\n"
+            f"## Persona variation policy\n"
+            f"Mode: {child.persona_variation.get('mode')}\n"
+            f"Variance: {child.persona_variation.get('variance')}\n"
+            f"Seed: {child.persona_variation.get('seed')}\n"
+            f"Constraints:\n{constraints}\n"
+        )
+
+    def _build_child_document_text(self, document_text: str, child: UniverseChild) -> str:
+        """Append compact universe metadata to source context for child preparation."""
+        metadata = {
+            "universe_id": child.universe_id,
+            "scenario_variant": child.scenario_variant,
+            "persona_variation": child.persona_variation,
+        }
+        return f"{document_text or ''}\n\n[MULTIVERSE_CONTEXT]\n{json.dumps(metadata, ensure_ascii=False)}"
+
+    def prepare_experiment(
+        self,
+        multiverse_id: str,
+        document_text: str = "",
+        defined_entity_types: Optional[List[str]] = None,
+        use_llm_for_profiles: bool = True,
+        parallel_profile_count: int = 3,
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        """Prepare child simulations sequentially with universe overlays.
+
+        This is intentionally bounded and synchronous at the manager layer so the
+        API can run it in a background task without hidden parallel LLM bursts.
+        """
+        experiment = self.get_experiment(multiverse_id)
+        if not experiment:
+            raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
+
+        experiment.status = MultiverseStatus.PREPARING
+        prepared_count = 0
+        skipped_count = 0
+        failed: List[Dict[str, Any]] = []
+        children_result: List[Dict[str, Any]] = []
+
+        for child in experiment.children:
+            state = self.simulation_manager.get_simulation(child.simulation_id)
+            if not state:
+                child.status = "missing"
+                failed.append({"universe_id": child.universe_id, "simulation_id": child.simulation_id, "error": "missing child simulation"})
+                children_result.append(child.to_dict())
+                continue
+            if not force and state.status == SimulationStatus.READY and state.config_generated:
+                child.status = "ready"
+                skipped_count += 1
+                children_result.append(child.to_dict())
+                continue
+
+            child.status = "preparing"
+            self._save_experiment(experiment)
+            try:
+                prepared_state = self.simulation_manager.prepare_simulation(
+                    simulation_id=child.simulation_id,
+                    simulation_requirement=self._build_child_requirement(experiment, child),
+                    document_text=self._build_child_document_text(document_text, child),
+                    defined_entity_types=defined_entity_types,
+                    use_llm_for_profiles=use_llm_for_profiles,
+                    parallel_profile_count=parallel_profile_count,
+                    persona_selection_mode=experiment.persona_selection_mode,
+                    max_agent_personas=experiment.max_agent_personas,
+                )
+                child.status = prepared_state.status.value
+                if prepared_state.status == SimulationStatus.READY:
+                    prepared_count += 1
+            except Exception as e:
+                child.status = "failed"
+                failed.append({"universe_id": child.universe_id, "simulation_id": child.simulation_id, "error": str(e)})
+            self._write_child_context(child, experiment)
+            children_result.append(child.to_dict())
+
+        if failed and prepared_count == 0 and skipped_count == 0:
+            experiment.status = MultiverseStatus.FAILED
+        elif prepared_count + skipped_count == len(experiment.children):
+            experiment.status = MultiverseStatus.PREPARING
+        else:
+            experiment.status = MultiverseStatus.PARTIAL
+        self._save_experiment(experiment)
+        return {
+            "multiverse_id": experiment.multiverse_id,
+            "status": experiment.status.value,
+            "prepared_count": prepared_count,
+            "skipped_count": skipped_count,
+            "failed_count": len(failed),
+            "failed": failed,
+            "children": children_result,
+        }
+
+    def start_experiment(
+        self,
+        multiverse_id: str,
+        platform: str = "parallel",
+        force: bool = False,
+    ) -> Dict[str, Any]:
+        """Start up to max_parallel ready child simulations; leave the rest queued."""
+        experiment = self.get_experiment(multiverse_id)
+        if not experiment:
+            raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
+        if platform not in {"twitter", "reddit", "parallel"}:
+            raise ValueError(f"Invalid platform: {platform}")
+
+        self.refresh_status(multiverse_id)
+        experiment = self.get_experiment(multiverse_id)
+        assert experiment is not None
+
+        running_now = 0
+        started: List[Dict[str, Any]] = []
+        queued: List[Dict[str, Any]] = []
+        failed: List[Dict[str, Any]] = []
+
+        simulation_manager = SimulationManager()
+        for child in experiment.children:
+            state = simulation_manager.get_simulation(child.simulation_id)
+            run_state = SimulationRunner.get_run_state(child.simulation_id)
+            is_running = run_state and run_state.runner_status in [RunnerStatus.STARTING, RunnerStatus.RUNNING]
+            if is_running:
+                running_now += 1
+                child.status = "running"
+                continue
+            if not state or state.status != SimulationStatus.READY:
+                child.status = state.status.value if state else "missing"
+                continue
+            if running_now >= experiment.max_parallel:
+                child.status = "queued"
+                queued.append(child.to_dict())
+                continue
+
+            try:
+                graph_id = state.graph_id or experiment.graph_id
+                if child.graph_memory_enabled and not graph_id:
+                    raise ValueError("graph_id is required when graph memory update is enabled")
+                run_state = SimulationRunner.start_simulation(
+                    simulation_id=child.simulation_id,
+                    platform=platform,
+                    max_rounds=experiment.rounds,
+                    enable_graph_memory_update=child.graph_memory_enabled,
+                    graph_id=graph_id if child.graph_memory_enabled else None,
+                )
+                state.status = SimulationStatus.RUNNING
+                simulation_manager._save_simulation_state(state)
+                child.status = "running"
+                running_now += 1
+                started.append({**child.to_dict(), "run_state": run_state.to_dict()})
+            except Exception as e:
+                child.status = "failed"
+                failed.append({"universe_id": child.universe_id, "simulation_id": child.simulation_id, "error": str(e)})
+
+        experiment.status = MultiverseStatus.RUNNING if (started or running_now > 0) else MultiverseStatus.PARTIAL
+        self._save_experiment(experiment)
+        return {
+            "multiverse_id": experiment.multiverse_id,
+            "status": experiment.status.value,
+            "started_count": len(started),
+            "running_count": running_now,
+            "queued_count": len(queued),
+            "failed_count": len(failed),
+            "started": started,
+            "queued": queued,
+            "failed": failed,
+        }
+
+    def refresh_status(self, multiverse_id: str) -> Dict[str, Any]:
+        """Refresh child statuses from simulation/run state and schedule more queued runs if slots are open."""
+        experiment = self.get_experiment(multiverse_id)
+        if not experiment:
+            raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
+
+        status_counter: Counter[str] = Counter()
+        simulation_manager = SimulationManager()
+        for child in experiment.children:
+            state = simulation_manager.get_simulation(child.simulation_id)
+            run_state = SimulationRunner.get_run_state(child.simulation_id)
+            if run_state and run_state.runner_status in [RunnerStatus.STARTING, RunnerStatus.RUNNING]:
+                child.status = "running"
+            elif run_state and run_state.runner_status == RunnerStatus.COMPLETED:
+                child.status = "completed"
+                if state and state.status != SimulationStatus.COMPLETED:
+                    state.status = SimulationStatus.COMPLETED
+                    simulation_manager._save_simulation_state(state)
+            elif state:
+                child.status = state.status.value
+            else:
+                child.status = "missing"
+            status_counter[child.status] += 1
+
+        if status_counter.get("running", 0) > 0 or status_counter.get("queued", 0) > 0:
+            experiment.status = MultiverseStatus.RUNNING
+        elif status_counter.get("completed", 0) == len(experiment.children) and experiment.children:
+            experiment.status = MultiverseStatus.COMPLETED
+        elif status_counter.get("failed", 0) == len(experiment.children) and experiment.children:
+            experiment.status = MultiverseStatus.FAILED
+        elif status_counter.get("completed", 0) > 0 or status_counter.get("failed", 0) > 0:
+            experiment.status = MultiverseStatus.PARTIAL
+        self._save_experiment(experiment)
+        return {
+            "multiverse_id": experiment.multiverse_id,
+            "status": experiment.status.value,
+            "status_frequency": dict(status_counter),
+            "children": [child.to_dict() for child in experiment.children],
+        }
+
+    def _build_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        keyword_families = {
+            "institutional_defense": ["은행", "방어", "기관", "로비", "incumbent", "defense"],
+            "regulatory_delay": ["규제", "지연", "감독", "regulatory", "delay"],
+            "user_trust_shift": ["사용자", "신뢰", "채택", "adoption", "trust"],
+            "exchange_led_growth": ["거래소", "확산", "시장", "exchange", "growth"],
+            "media_amplification": ["언론", "프레임", "media", "frame"],
+        }
+        clusters: List[Dict[str, Any]] = []
+        completed = [child for child in child_summaries if child.get("status") == "completed"]
+        for cluster_id, keywords in keyword_families.items():
+            matched = []
+            for child in completed:
+                text = child.get("config_reasoning", "")
+                if any(keyword.lower() in text.lower() for keyword in keywords):
+                    matched.append(child["universe_id"])
+            if matched:
+                clusters.append({
+                    "cluster_id": cluster_id,
+                    "label": cluster_id.replace("_", " ").title(),
+                    "universe_ids": matched,
+                    "frequency": len(matched),
+                    "ensemble_frequency": f"{len(matched)}/{len(child_summaries)}",
+                })
+        if not clusters and completed:
+            clusters.append({
+                "cluster_id": "completed_without_classified_pattern",
+                "label": "Completed branches without classified repeated pattern",
+                "universe_ids": [child["universe_id"] for child in completed],
+                "frequency": len(completed),
+                "ensemble_frequency": f"{len(completed)}/{len(child_summaries)}",
+            })
+        return clusters
+
+    def _build_ensemble_report_markdown(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> str:
+        clusters = aggregate.get("outcome_clusters", [])
+        cluster_lines = "\n".join(
+            f"- {cluster['label']}: {cluster['ensemble_frequency']} branches ({', '.join(cluster['universe_ids'])})"
+            for cluster in clusters
+        ) or "- 아직 분류 가능한 완료 outcome cluster가 없습니다."
+        sensitivity_lines = "\n".join(
+            f"- {axis['universe_id']}: {axis['label']} / {axis['polarity']} / {axis['status']}"
+            for axis in aggregate.get("sensitivity_axes", [])
+        )
+        return f"""# Multiverse Ensemble Report
+
+## Scope
+- Topic: {experiment.base_requirement}
+- Universes: {aggregate.get('universe_count', 0)}
+- Completed: {aggregate.get('completed_count', 0)}
+
+## Outcome clusters — ensemble_frequency
+{cluster_lines}
+
+## Common findings
+{chr(10).join(f'- {item}' for item in aggregate.get('common_findings', [])) or '- 완료된 branch가 더 필요합니다.'}
+
+## Divergent findings / sensitivity axes
+{sensitivity_lines}
+
+## Probability caveat
+이 값은 실제 확률(calibrated real-world probability)이 아니라 simulation branch의 ensemble_frequency입니다. 보고서에서는 반복적으로 나타난 패턴과 민감한 가정을 구분하는 근거로만 사용합니다.
+"""
+
     def aggregate_experiment(self, multiverse_id: str) -> Dict[str, Any]:
         """Summarize child simulation states into ensemble-frequency evidence."""
 
@@ -414,14 +695,16 @@ class MultiverseManager:
                 for child in experiment.children
             ],
             "common_findings": [
-                "결과가 완료된 universe들에서 반복되는 outcome cluster를 보고서 단계에서 비교한다."
+                "완료된 universe들에서 반복적으로 등장한 outcome cluster를 ensemble_frequency로 비교합니다."
             ] if completed_children else [],
             "divergent_findings": [
-                "status/axis별 차이가 큰 universe를 우선 검토해 민감 변수를 식별한다."
+                "status/axis별 차이가 큰 universe를 우선 검토해 민감 변수를 식별합니다."
             ] if len(status_counter) > 1 else [],
             "children": child_summaries,
             "generated_at": datetime.now().isoformat(),
         }
+        aggregate["outcome_clusters"] = self._build_outcome_clusters(child_summaries)
+        aggregate["ensemble_report_markdown"] = self._build_ensemble_report_markdown(experiment, aggregate)
         experiment.aggregate = aggregate
         self._save_experiment(experiment)
         return aggregate

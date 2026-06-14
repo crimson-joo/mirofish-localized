@@ -185,3 +185,33 @@ export const getSimulationHistory = (limit = 20) => {
   return service.get('/api/simulation/history', { params: { limit } })
 }
 
+export const createMultiverse = (data) => {
+  return requestWithRetry(() => service.post('/api/simulation/multiverse/create', data), 3, 1000)
+}
+
+export const getMultiverse = (multiverseId) => {
+  return service.get(`/api/simulation/multiverse/${multiverseId}`)
+}
+
+export const listMultiverses = (projectId = null, limit = 20) => {
+  const params = { limit }
+  if (projectId) params.project_id = projectId
+  return service.get('/api/simulation/multiverse/list', { params })
+}
+
+export const prepareMultiverse = (multiverseId, data = {}) => {
+  return requestWithRetry(() => service.post(`/api/simulation/multiverse/${multiverseId}/prepare`, data), 3, 1000)
+}
+
+export const startMultiverse = (multiverseId, data = {}) => {
+  return requestWithRetry(() => service.post(`/api/simulation/multiverse/${multiverseId}/start`, data), 3, 1000)
+}
+
+export const getMultiverseStatus = (multiverseId) => {
+  return service.get(`/api/simulation/multiverse/${multiverseId}/status`)
+}
+
+export const getMultiverseReport = (multiverseId) => {
+  return service.get(`/api/simulation/multiverse/${multiverseId}/report`)
+}
+
