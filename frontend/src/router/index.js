@@ -5,6 +5,7 @@ import SimulationView from '../views/SimulationView.vue'
 import SimulationRunView from '../views/SimulationRunView.vue'
 import ReportView from '../views/ReportView.vue'
 import InteractionView from '../views/InteractionView.vue'
+import MultiverseDashboardView from '../views/MultiverseDashboardView.vue'
 
 const routes = [
   {
@@ -28,6 +29,12 @@ const routes = [
     path: '/simulation/:simulationId/start',
     name: 'SimulationRun',
     component: SimulationRunView,
+    props: true
+  },
+  {
+    path: '/multiverse/:multiverseId',
+    name: 'MultiverseDashboard',
+    component: MultiverseDashboardView,
     props: true
   },
   {

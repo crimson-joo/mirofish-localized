@@ -158,14 +158,24 @@
         <div class="card-content">
           <p class="api-note">POST /api/simulation/create</p>
           <p class="description">{{ $t('step1.buildCompleteDesc') }}</p>
-          <button 
-            class="action-btn" 
-            :disabled="currentPhase < 2 || creatingSimulation"
-            @click="handleEnterEnvSetup"
-          >
-            <span v-if="creatingSimulation" class="spinner-sm"></span>
-            {{ creatingSimulation ? $t('step1.creating') : $t('step1.enterEnvSetup') + ' ➝' }}
-          </button>
+          <div class="action-row">
+            <button
+              class="action-btn"
+              :disabled="currentPhase < 2 || creatingSimulation || creatingMultiverse"
+              @click="handleEnterEnvSetup"
+            >
+              <span v-if="creatingSimulation" class="spinner-sm"></span>
+              {{ creatingSimulation ? $t('step1.creating') : $t('step1.enterEnvSetup') + ' ➝' }}
+            </button>
+            <button
+              class="action-btn multiverse-btn"
+              :disabled="currentPhase < 2 || creatingSimulation || creatingMultiverse"
+              @click="handleCreateMultiverse"
+            >
+              <span v-if="creatingMultiverse" class="spinner-sm"></span>
+              {{ creatingMultiverse ? '멀티버스 생성 중...' : '멀티버스 시뮬레이션 ➝' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -190,7 +200,7 @@
 import { computed, ref, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { createSimulation } from '../api/simulation'
+import { createMultiverse, createSimulation } from '../api/simulation'
 
 const router = useRouter()
 const { t } = useI18n()
@@ -209,6 +219,7 @@ defineEmits(['next-step'])
 const selectedOntologyItem = ref(null)
 const logContent = ref(null)
 const creatingSimulation = ref(false)
+const creatingMultiverse = ref(false)
 
 // 进入环境搭建 - 创建 simulation 并跳转
 const handleEnterEnvSetup = async () => {
@@ -242,6 +253,43 @@ const handleEnterEnvSetup = async () => {
     alert(t('step1.createSimulationException', { error: err.message }))
   } finally {
     creatingSimulation.value = false
+  }
+}
+
+const handleCreateMultiverse = async () => {
+  if (!props.projectData?.project_id || !props.projectData?.graph_id) {
+    console.error('缺少项目或图谱信息')
+    return
+  }
+
+  creatingMultiverse.value = true
+
+  try {
+    const res = await createMultiverse({
+      project_id: props.projectData.project_id,
+      graph_id: props.projectData.graph_id,
+      universe_count: 5,
+      max_parallel: 2,
+      rounds: 24,
+      persona_selection_mode: 'core',
+      max_agent_personas: 30,
+      graph_memory_enabled: true
+    })
+
+    if (res.success && res.data?.multiverse_id) {
+      router.push({
+        name: 'MultiverseDashboard',
+        params: { multiverseId: res.data.multiverse_id }
+      })
+    } else {
+      console.error('创建Multiverse失败:', res.error)
+      alert(`Multiverse 생성 실패: ${res.error || t('common.unknownError')}`)
+    }
+  } catch (err) {
+    console.error('创建Multiverse异常:', err)
+    alert(`Multiverse 생성 예외: ${err.message}`)
+  } finally {
+    creatingMultiverse.value = false
   }
 }
 
@@ -601,6 +649,12 @@ watch(() => props.systemLogs.length, () => {
 }
 
 /* Step 03 Button */
+.action-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
 .action-btn {
   width: 100%;
   background: #000;
@@ -616,6 +670,10 @@ watch(() => props.systemLogs.length, () => {
 
 .action-btn:hover:not(:disabled) {
   opacity: 0.8;
+}
+
+.multiverse-btn {
+  background: linear-gradient(135deg, #111827, #0f766e);
 }
 
 .action-btn:disabled {

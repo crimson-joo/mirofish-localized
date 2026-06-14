@@ -22,8 +22,9 @@
 - Console: blocker JS error 없음
 - Smoke: `./scripts/local-smoke.sh` PASS
 - Native extraction gate: `GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py` PASS 또는 명확한 BLOCKED 사유
-- Multiverse focused tests: `cd backend && uv run pytest tests/test_multiverse_manager.py tests/test_route_smoke.py -q` PASS
-- Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/api/simulation/multiverse/<mv_id>/aggregate`가 실험/child simulation/aggregate shape을 반환해야 합니다.
+- Multiverse focused tests: `cd backend && uv run pytest tests/test_multiverse_manager.py tests/test_multiverse_orchestration.py tests/test_route_smoke.py -q` PASS
+- Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/prepare`, `/start`, `/status`, `/aggregate`, `/report`가 실험/child simulation/queue/aggregate/report shape을 반환해야 합니다.
+- Multiverse UI smoke: Step1의 “멀티버스 시뮬레이션” 버튼이 `/multiverse/:multiverseId` dashboard로 이동하고, universe card/status/aggregate report/disclaimer가 보여야 합니다.
 
 ## Pages Canary 기준
 
