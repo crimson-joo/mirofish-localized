@@ -103,6 +103,13 @@ class MultiverseReportAgentComparisonTest(unittest.TestCase):
         self.assertEqual(data["comparison_type"], "single_vs_multiverse")
         self.assertEqual(data["judgement"]["verdict"], "PASS")
         self.assertGreater(data["multiverse"]["evidence_items"], data["single"]["evidence_items"])
+        self.assertEqual(data["single"]["baseline_source"]["source_type"], "first_completed_universe")
+        self.assertEqual(data["single"]["baseline_source"]["universe_id"], experiment.children[0].universe_id)
+        self.assertIn("report_agent_context", data)
+        suggested = data["report_agent_context"]["suggested_questions"]
+        self.assertGreaterEqual(len(suggested), 5)
+        self.assertTrue(all("question" in item and "reason" in item and "category" in item for item in suggested))
+        self.assertIn("AI 규제 이슈", suggested[0]["question"])
         self.assertIn("Single-run vs Multiverse", data["report_markdown"])
 
 
