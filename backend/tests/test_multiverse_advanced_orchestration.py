@@ -129,7 +129,10 @@ class MultiverseAdvancedOrchestrationTest(unittest.TestCase):
         self.assertGreaterEqual(len(semantic_clusters), 2)
         self.assertTrue(all(cluster.get("evidence") for cluster in semantic_clusters))
         self.assertIn("report_agent_context", aggregate)
-        self.assertIn("질문", aggregate["report_agent_context"]["suggested_questions"][0])
+        self.assertIn("single_baseline", aggregate)
+        first_question = aggregate["report_agent_context"]["suggested_questions"][0]
+        self.assertIn("question", first_question)
+        self.assertIn("reason", first_question)
 
 
 if __name__ == "__main__":

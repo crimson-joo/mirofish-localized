@@ -99,9 +99,9 @@
             <p>{{ comparison.judgement?.caveat }}</p>
           </div>
           <div class="summary-card">
-            <span class="label">단일 실행</span>
+            <span class="label">단일 기준</span>
             <strong>{{ comparison.single?.evidence_items || 0 }} evidence</strong>
-            <p>결론 1개 · 반복성/민감도 판단 불가</p>
+            <p>{{ baselineSource?.source_label || '첫 완료 universe' }} · {{ baselineSource?.universe_id || 'pending' }}</p>
           </div>
           <div class="summary-card">
             <span class="label">멀티버스</span>
@@ -123,11 +123,37 @@
             <h2>보고서 AI(Report Agent)에게 묻기</h2>
           </div>
         </div>
-        <div class="suggested-questions">
-          <button v-for="q in suggestedQuestions" :key="q" class="ghost-btn small" :disabled="busy" @click="askQuestion(q)">{{ q }}</button>
+        <div class="agent-context-grid">
+          <div class="summary-card wide">
+            <span class="label">현재 주제</span>
+            <p>{{ reportAgentContext?.base_requirement || experiment.base_requirement }}</p>
+          </div>
+          <div class="summary-card">
+            <span class="label">리포트 상태</span>
+            <strong>{{ reportStatus.completed_count }}/{{ reportStatus.universe_count }}</strong>
+            <p>cluster {{ reportStatus.cluster_count }} · axis {{ reportStatus.sensitivity_axis_count }}</p>
+          </div>
+          <div class="summary-card">
+            <span class="label">비교 기준</span>
+            <strong>{{ baselineSource?.universe_id || 'pending' }}</strong>
+            <p>{{ baselineSource?.reason || '첫 완료 universe를 단일 기준으로 사용합니다.' }}</p>
+          </div>
+        </div>
+        <div class="suggested-question-list">
+          <button
+            v-for="item in contextualSuggestedQuestions"
+            :key="`${item.category}-${item.question}`"
+            class="suggested-question-card"
+            :disabled="busy"
+            @click="askQuestion(item.question)"
+          >
+            <span class="question-label">{{ item.label || item.category }}</span>
+            <strong>{{ item.question }}</strong>
+            <small>{{ item.reason }}</small>
+          </button>
         </div>
         <div class="agent-input-row">
-          <input v-model="agentQuestion" placeholder="예: 어떤 조건에서 결과가 갈렸어?" @keyup.enter="askQuestion(agentQuestion)" />
+          <input v-model="agentQuestion" placeholder="예: 현재 리포트의 핵심 결론은 뭐야?" @keyup.enter="askQuestion(agentQuestion)" />
           <button class="primary-btn" :disabled="busy || !agentQuestion" @click="askQuestion(agentQuestion)">질문</button>
         </div>
         <div v-if="agentAnswer" class="agent-answer">{{ agentAnswer }}</div>
@@ -194,14 +220,40 @@ const experiment = ref(null)
 const aggregate = ref(null)
 const reportMarkdown = ref('')
 const comparison = ref(null)
-const agentQuestion = ref('단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?')
+const agentQuestion = ref('현재 리포트의 핵심 결론은 뭐야?')
 const agentAnswer = ref('')
-const suggestedQuestions = [
-  '단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?',
-  '어떤 결론이 반복됐어?',
-  '어떤 조건에서 결과가 갈렸어?',
-  'ensemble_frequency는 어떻게 해석해야 해?'
+const fallbackSuggestedQuestions = [
+  {
+    category: 'topic',
+    label: '주제 핵심',
+    question: '현재 주제에서 리포트가 말하는 핵심 결론은 뭐야?',
+    reason: '아직 backend 추천 질문이 로딩되지 않았을 때 사용하는 기본 질문입니다.'
+  },
+  {
+    category: 'single_vs_multiverse',
+    label: '단일 대비',
+    question: '단일 기준으로 봤다면 놓쳤을 멀티버스 결론은 뭐야?',
+    reason: '첫 완료 universe baseline과 멀티버스 aggregate의 차이를 확인합니다.'
+  },
+  {
+    category: 'sensitivity',
+    label: '분기/민감도',
+    question: '어떤 조건에서 결과가 갈렸어?',
+    reason: 'sensitivity axis가 결과 차이를 만든 조건인지 확인합니다.'
+  }
 ]
+const reportAgentContext = computed(() => comparison.value?.report_agent_context || aggregate.value?.report_agent_context || {})
+const baselineSource = computed(() => comparison.value?.single?.baseline_source || aggregate.value?.single_baseline || reportAgentContext.value?.single_baseline || null)
+const reportStatus = computed(() => reportAgentContext.value?.report_status || {
+  completed_count: aggregate.value?.completed_count || 0,
+  universe_count: aggregate.value?.universe_count || experiment.value?.universe_count || 0,
+  cluster_count: aggregate.value?.outcome_clusters?.length || 0,
+  sensitivity_axis_count: aggregate.value?.sensitivity_axes?.length || 0
+})
+const contextualSuggestedQuestions = computed(() => {
+  const questions = reportAgentContext.value?.suggested_questions || []
+  return questions.length ? questions : fallbackSuggestedQuestions
+})
 const prepareTask = ref(null)
 const busy = ref(false)
 let pollTimer = null
@@ -374,7 +426,20 @@ dd { margin:0; font-size:13px; word-break: break-all; }
 .comparison-grid { display:grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap:14px; margin-top:16px; }
 .pass-text { color:#86efac; }
 .warn-text { color:#fde68a; }
-.suggested-questions { display:flex; gap:10px; flex-wrap:wrap; margin:16px 0; }
+.agent-context-grid { display:grid; grid-template-columns: 2fr 1fr 1fr; gap:14px; margin-top:16px; }
+.suggested-question-list { display:grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap:12px; margin:16px 0; }
+.suggested-question-card {
+  text-align:left;
+  border:1px solid rgba(141,232,255,.24);
+  border-radius:16px;
+  background:rgba(141,232,255,.08);
+  color:#f4f7fb;
+  padding:14px;
+  cursor:pointer;
+}
+.suggested-question-card strong { display:block; margin:8px 0; line-height:1.35; }
+.suggested-question-card small { display:block; color:#96a3b8; line-height:1.4; }
+.question-label { display:inline-block; color:#8de8ff; font-size:12px; font-weight:700; letter-spacing:.04em; }
 .ghost-btn.small { padding:8px 12px; font-size:12px; }
 .agent-input-row { display:flex; gap:10px; }
 .agent-input-row input { flex:1; border-radius:999px; border:1px solid rgba(141,232,255,.3); background:#05070a; color:#f4f7fb; padding:12px 14px; }
@@ -382,6 +447,6 @@ dd { margin:0; font-size:13px; word-break: break-all; }
 
 @media (max-width: 760px) {
   .mv-header, .control-panel, .report-header { flex-direction: column; align-items: flex-start; }
-  .summary-grid, .aggregate-grid, .comparison-grid { grid-template-columns: 1fr 1fr; }
+  .summary-grid, .aggregate-grid, .comparison-grid, .agent-context-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>

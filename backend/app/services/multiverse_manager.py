@@ -811,12 +811,112 @@ class MultiverseManager:
             })
         return clusters
 
+    @staticmethod
+    def _first_sentence(text: str, limit: int = 90) -> str:
+        cleaned = re.sub(r"\s+", " ", text or "").strip()
+        if not cleaned:
+            return "결과 요약이 아직 없습니다"
+        sentence = re.split(r"(?<=[.!?。！？])\s+", cleaned)[0]
+        return sentence[:limit] + ("…" if len(sentence) > limit else "")
+
+    def _select_single_baseline_source(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> Dict[str, Any]:
+        """Use the first completed multiverse child as the single-run baseline.
+
+        This avoids running a duplicate single simulation while still making the
+        comparison source explicit in API/UI so users know what "single" means.
+        """
+        for child in aggregate.get("children", []):
+            if child.get("status") == "completed" and child.get("config_reasoning"):
+                return {
+                    "source_type": "first_completed_universe",
+                    "source_label": "멀티버스 내 첫 완료 universe",
+                    "universe_id": child.get("universe_id"),
+                    "simulation_id": child.get("simulation_id"),
+                    "axis": child.get("axis"),
+                    "axis_label": child.get("label"),
+                    "summary": child.get("config_reasoning", ""),
+                    "reason": "추가 single run을 돌리지 않고, 같은 멀티버스 실험의 첫 완료 세계선을 단일 경로 baseline으로 사용합니다.",
+                }
+        return {
+            "source_type": "none",
+            "source_label": "완료된 단일 기준 없음",
+            "summary": "",
+            "reason": "아직 완료된 universe가 없어 단일 baseline을 만들 수 없습니다.",
+        }
+
+    def _build_contextual_suggested_questions(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> List[Dict[str, str]]:
+        topic = self._first_sentence(experiment.base_requirement, limit=120)
+        clusters = aggregate.get("outcome_clusters", [])
+        axes = aggregate.get("sensitivity_axes", [])
+        completed = aggregate.get("completed_count", 0)
+        total = aggregate.get("universe_count", 0)
+        baseline = aggregate.get("single_baseline") or self._select_single_baseline_source(experiment, aggregate)
+
+        questions: List[Dict[str, str]] = [
+            {
+                "category": "topic",
+                "label": "주제 핵심",
+                "question": f"'{topic}' 주제에서 현재 리포트가 말하는 핵심 결론은 뭐야?",
+                "reason": "Report Agent가 먼저 사용자의 원래 주제와 현재 aggregate 리포트의 연결을 설명해야 합니다.",
+            },
+            {
+                "category": "report",
+                "label": "리포트 요약",
+                "question": "현재 aggregate report를 의사결정자용으로 결론/근거/주의점 3단으로 요약해줘.",
+                "reason": f"{completed}/{total} universe 진행 상태와 생성된 리포트를 한 번에 읽기 위한 질문입니다.",
+            },
+        ]
+
+        if baseline.get("source_type") != "none":
+            questions.append({
+                "category": "single_vs_multiverse",
+                "label": "단일 대비",
+                "question": f"단일 기준({baseline.get('universe_id')})으로 봤다면 놓쳤을 멀티버스 결론은 뭐야?",
+                "reason": "비교 기준이 첫 완료 universe로 정해져 있으므로, 그 단일 경로의 한계를 명시적으로 확인합니다.",
+            })
+
+        if clusters:
+            strongest = max(clusters, key=lambda item: item.get("frequency", 0))
+            questions.append({
+                "category": "clusters",
+                "label": "반복 결론",
+                "question": f"가장 반복된 결론 cluster({strongest.get('ensemble_frequency')})는 왜 중요하고 근거 universe는 뭐야?",
+                "reason": f"{len(clusters)}개 outcome cluster가 발견되어 반복 패턴을 검토할 가치가 있습니다.",
+            })
+
+        if axes:
+            axis_labels = [axis.get("label") or axis.get("axis") for axis in axes if axis.get("label") or axis.get("axis")]
+            focus_axis = axis_labels[0] if axis_labels else "가장 중요한 scenario axis"
+            questions.append({
+                "category": "sensitivity",
+                "label": "분기/민감도",
+                "question": f"'{focus_axis}' 조건이 결과를 어떻게 갈랐는지 설명해줘.",
+                "reason": f"{len(axes)}개 sensitivity axis가 있어 결과가 어떤 조건에 민감한지 확인해야 합니다.",
+            })
+
+        questions.append({
+            "category": "next_run",
+            "label": "다음 실험",
+            "question": "이 리포트 기준으로 다음 멀티버스 실행에서 바꿔볼 변수 3개를 추천해줘.",
+            "reason": "현재 리포트에서 끝내지 않고 다음 실험 설계로 이어가기 위한 질문입니다.",
+        })
+        return questions
+
     def _build_report_agent_context(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> Dict[str, Any]:
+        baseline = aggregate.get("single_baseline") or self._select_single_baseline_source(experiment, aggregate)
+        suggested_questions = self._build_contextual_suggested_questions(experiment, {**aggregate, "single_baseline": baseline})
         return {
             "context_type": "multiverse_ensemble",
             "multiverse_id": experiment.multiverse_id,
             "graph_id": experiment.graph_id,
             "base_requirement": experiment.base_requirement,
+            "report_status": {
+                "completed_count": aggregate.get("completed_count", 0),
+                "universe_count": aggregate.get("universe_count", 0),
+                "cluster_count": len(aggregate.get("outcome_clusters", [])),
+                "sensitivity_axis_count": len(aggregate.get("sensitivity_axes", [])),
+            },
+            "single_baseline": baseline,
             "probability_caveat": aggregate.get("probability_note"),
             "outcome_clusters": aggregate.get("outcome_clusters", []),
             "sensitivity_axes": aggregate.get("sensitivity_axes", []),
@@ -829,11 +929,7 @@ class MultiverseManager:
                 }
                 for child in aggregate.get("children", [])
             ],
-            "suggested_questions": [
-                "질문: 어떤 universe들이 같은 결론으로 묶였고 근거는 무엇인가?",
-                "질문: 결과가 가장 크게 갈린 scenario axis는 무엇인가?",
-                "질문: ensemble_frequency를 실제 확률이 아닌 시뮬레이션 빈도로 어떻게 해석해야 하는가?",
-            ],
+            "suggested_questions": suggested_questions,
         }
 
     def build_single_run_baseline_answer(self, requirement: str, summary: str) -> Dict[str, Any]:
@@ -949,11 +1045,9 @@ class MultiverseManager:
             raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
 
         aggregate = self.aggregate_experiment(multiverse_id, clustering_strategy=clustering_strategy)
+        baseline_source = self._select_single_baseline_source(experiment, aggregate)
         if not single_summary:
-            for child in aggregate.get("children", []):
-                if child.get("status") == "completed" and child.get("config_reasoning"):
-                    single_summary = child.get("config_reasoning", "")
-                    break
+            single_summary = baseline_source.get("summary", "")
         single = self.build_single_run_baseline_answer(experiment.base_requirement, single_summary)
         multiverse_answer = self.answer_report_agent_question(
             multiverse_id=multiverse_id,
@@ -975,6 +1069,7 @@ class MultiverseManager:
             "topic": experiment.base_requirement,
             "single": {
                 "summary": single_summary,
+                "baseline_source": baseline_source,
                 "comparison_score": single.get("comparison_score", 0),
                 "evidence_items": single.get("evidence_items", 0),
                 "limitations": ["single_outcome_only", "no_ensemble_frequency", "no_sensitivity_axes"],
@@ -997,6 +1092,7 @@ class MultiverseManager:
                 "caveat": "ensemble_frequency는 실제 확률이 아니라 시뮬레이션 세계선 빈도입니다.",
             },
             "aggregate": aggregate,
+            "report_agent_context": aggregate.get("report_agent_context", {}),
             "report_markdown": self._build_comparison_markdown(single, multiverse_answer, aggregate, judgement),
             "generated_at": datetime.now().isoformat(),
         }
@@ -1155,6 +1251,7 @@ ensemble_frequency는 실제 확률이 아니라 시뮬레이션 세계선 빈�
             aggregate["outcome_clusters"] = self._build_semantic_outcome_clusters(child_summaries)
         else:
             aggregate["outcome_clusters"] = self._build_outcome_clusters(child_summaries)
+        aggregate["single_baseline"] = self._select_single_baseline_source(experiment, aggregate)
         aggregate["report_agent_context"] = self._build_report_agent_context(experiment, aggregate)
         aggregate["ensemble_report_markdown"] = self._build_ensemble_report_markdown(experiment, aggregate)
         experiment.aggregate = aggregate

@@ -19,7 +19,8 @@ const requiredSource = [
   '보고서 AI(Report Agent)에게 묻기',
   'compareMultiverseWithSingle',
   'chatMultiverseReportAgent',
-  'ensemble_frequency는 어떻게 해석해야 해?'
+  'contextualSuggestedQuestions',
+  '비교 기준'
 ]
 const requiredApi = [
   '/compare-single',
