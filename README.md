@@ -91,6 +91,20 @@ Click the image to watch MiroFish's deep prediction of the lost ending based on 
 4. **Report Generation**: ReportAgent with rich toolset for deep interaction with post-simulation environment
 5. **Deep Interaction**: Chat with any agent in the simulated world & Interact with ReportAgent
 
+### BettaFish report → single MiroFish simulation runner
+
+For localized research flows where a BettaFish final Markdown report is the real-world seed, use the resume-safe runner:
+
+```bash
+python -u scripts/bettafish-single-e2e-runner.py \
+  --bettafish-report /path/to/final_report.md \
+  --topic "스페이스X 상장과 함께 볼 투자 테마" \
+  --state-path .hermes/runs/bettafish-mirofish-single-e2e/state.json \
+  --log-file .hermes/runs/bettafish-mirofish-single-e2e/events.jsonl
+```
+
+The runner saves `project_id`, `graph_task_id`, `graph_id`, `simulation_id`, `report_task_id`, and `report_id` so a later invocation can resume after SIGTERM/timeouts. It flushes JSONL progress events, separates graph/prepare/action/report/chat timeouts, keeps Graph memory update enabled by default, and writes one final summary that includes interrupted attempts plus the successful resume run.
+
 ## 🚀 Quick Start
 
 ### Option 1: Source Code Deployment (Recommended)
