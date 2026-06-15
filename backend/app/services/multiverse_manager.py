@@ -720,7 +720,7 @@ class MultiverseManager:
             ]
             clusters.append({
                 "cluster_id": f"semantic_{len(clusters) + 1}",
-                "label": "Semantic outcome cluster",
+                "label": self._humanize_cluster_label(common_terms, evidence),
                 "universe_ids": [item["universe_id"] for item in cluster_children],
                 "frequency": len(cluster_children),
                 "ensemble_frequency": f"{len(cluster_children)}/{len(child_summaries)}",
@@ -729,6 +729,32 @@ class MultiverseManager:
                 "method": "deterministic_token_similarity",
             })
         return clusters
+
+
+    @staticmethod
+    def _humanize_cluster_label(common_terms: List[str], evidence: List[Dict[str, Any]]) -> str:
+        text = " ".join(
+            [" ".join(common_terms)]
+            + [str(item.get("snippet", "")) for item in evidence]
+        ).lower()
+        label_rules = [
+            ("규제 명확성 확산형", ["규제 명확", "명확성", "국채", "머니마켓", "레일"]),
+            ("DeFi 담보 확산형", ["defi", "스테이블코인", "온체인", "신용시장", "오라클", "청산"]),
+            ("규제 제한 지연형", ["규제기관", "강하게", "제한", "허가형", "파일럿", "접근성"]),
+            ("환매·신용 리스크형", ["부동산", "사모신용", "환매", "고수익", "양극화", "투명성"]),
+            ("핀테크 UX 채택형", ["핀테크", "kyc", "간편", "ux", "소액", "재방문"]),
+            ("거래소·커뮤니티 확산형", ["거래소", "커뮤니티", "채택", "확산"]),
+            ("언론 프레임 민감형", ["언론", "프레임", "media"]),
+            ("기관 방어 전략형", ["은행", "방어", "로비", "incumbent"]),
+            ("기관 주도 관망형", ["기관", "토큰화", "관망", "완만", "성장"]),
+            ("사용자 신뢰 변화형", ["사용자", "신뢰", "채택"]),
+        ]
+        for label, keywords in label_rules:
+            if any(keyword.lower() in text for keyword in keywords):
+                return label
+        if common_terms:
+            return f"{common_terms[0]} 중심 결과형"
+        return "분기 결과형"
 
     def _build_llm_assisted_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Optionally ask the configured LLM to cluster outcomes; fall back safely."""
