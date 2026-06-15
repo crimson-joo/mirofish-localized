@@ -3020,3 +3020,25 @@ def get_multiverse_report_agent_context(multiverse_id: str):
     except Exception as e:
         logger.error(f"获取Multiverse Report Agent上下文失败: {str(e)}")
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@simulation_bp.route('/multiverse/<multiverse_id>/report-agent-chat', methods=['POST'])
+def chat_with_multiverse_report_agent(multiverse_id: str):
+    """Answer a question from multiverse aggregate context and compare to single-run baseline."""
+    try:
+        data = request.get_json() or {}
+        message = data.get('message') or data.get('question')
+        if not message:
+            return jsonify({"success": False, "error": "message is required"}), 400
+        result = MultiverseManager().answer_report_agent_question(
+            multiverse_id=multiverse_id,
+            question=message,
+            use_llm=data.get('use_llm', False),
+            clustering_strategy=data.get('clustering_strategy') or request.args.get('clustering_strategy', 'semantic'),
+        )
+        return jsonify({"success": True, "data": result})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"Multiverse Report Agent chat failed: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500

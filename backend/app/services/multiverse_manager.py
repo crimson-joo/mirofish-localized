@@ -26,6 +26,7 @@ from ..utils.logger import get_logger
 from .simulation_manager import SimulationManager, SimulationStatus
 from .simulation_runner import RunnerStatus, SimulationRunner
 from ..models.task import TaskManager, TaskStatus
+from ..utils.llm_client import LLMClient
 
 logger = get_logger("mirofish.multiverse")
 
@@ -665,9 +666,14 @@ class MultiverseManager:
 
     @staticmethod
     def _tokenize_outcome(text: str) -> Set[str]:
-        tokens = set(re.findall(r"[A-Za-z가-힣0-9]{2,}", (text or "").lower()))
-        stopwords = {"으로", "에서", "그리고", "with", "that", "this", "the", "and", "된다", "된다"}
-        return {token for token in tokens if token not in stopwords}
+        raw_tokens = re.findall(r"[A-Za-z가-힣0-9]{2,}", (text or "").lower())
+        stopwords = {"으로", "에서", "그리고", "with", "that", "this", "the", "and", "된다"}
+        normalized: Set[str] = set()
+        for token in raw_tokens:
+            token = re.sub(r"(으로|에서|에게|부터|까지|이며|이고|하고|한다|된다|이다|가|이|은|는|을|를|와|과|도)$", "", token)
+            if len(token) >= 2 and token not in stopwords:
+                normalized.add(token)
+        return normalized
 
     def _build_semantic_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Lightweight semantic clustering over child outcome text.
@@ -684,7 +690,7 @@ class MultiverseManager:
         token_sets = {child["universe_id"]: self._tokenize_outcome(child.get("config_reasoning", "")) for child in completed}
         assigned: Set[str] = set()
         clusters: List[Dict[str, Any]] = []
-        threshold = 0.22
+        threshold = 0.15
         for child in completed:
             universe_id = child["universe_id"]
             if universe_id in assigned:
@@ -723,6 +729,53 @@ class MultiverseManager:
                 "method": "deterministic_token_similarity",
             })
         return clusters
+
+    def _build_llm_assisted_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Optionally ask the configured LLM to cluster outcomes; fall back safely."""
+        completed = [child for child in child_summaries if child.get("status") == "completed"]
+        api_key = getattr(Config, "LLM_API_KEY", "") or ""
+        if not completed or not api_key or api_key.lower() in {"dummy", "placeholder", "test", "changeme"}:
+            return self._build_semantic_outcome_clusters(child_summaries)
+        try:
+            payload = [
+                {
+                    "universe_id": child.get("universe_id"),
+                    "summary": child.get("config_reasoning", "")[:1000],
+                }
+                for child in completed
+            ]
+            response = LLMClient().chat_json([
+                {
+                    "role": "system",
+                    "content": (
+                        "Cluster simulation outcomes. Return JSON only with key clusters. "
+                        "Each cluster must include cluster_id, label, universe_ids, and one-sentence evidence."
+                    ),
+                },
+                {"role": "user", "content": json.dumps(payload, ensure_ascii=False)},
+            ], temperature=0.1, max_tokens=2000)
+            clusters = []
+            known_ids = {child.get("universe_id") for child in completed}
+            for idx, cluster in enumerate(response.get("clusters", []), start=1):
+                universe_ids = [uid for uid in cluster.get("universe_ids", []) if uid in known_ids]
+                if not universe_ids:
+                    continue
+                clusters.append({
+                    "cluster_id": cluster.get("cluster_id") or f"llm_cluster_{idx}",
+                    "label": cluster.get("label") or f"LLM cluster {idx}",
+                    "universe_ids": universe_ids,
+                    "frequency": len(universe_ids),
+                    "ensemble_frequency": f"{len(universe_ids)}/{len(child_summaries)}",
+                    "evidence": [cluster.get("evidence", "")],
+                    "method": "llm_assisted_clustering",
+                })
+            return clusters or self._build_semantic_outcome_clusters(child_summaries)
+        except Exception as exc:
+            logger.warning("LLM-assisted multiverse clustering failed; falling back to semantic clustering: %s", exc)
+            clusters = self._build_semantic_outcome_clusters(child_summaries)
+            for cluster in clusters:
+                cluster["llm_fallback_reason"] = str(exc)
+            return clusters
 
     def _build_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         keyword_families = {
@@ -782,6 +835,105 @@ class MultiverseManager:
                 "질문: ensemble_frequency를 실제 확률이 아닌 시뮬레이션 빈도로 어떻게 해석해야 하는가?",
             ],
         }
+
+    def build_single_run_baseline_answer(self, requirement: str, summary: str) -> Dict[str, Any]:
+        """Shape a comparable baseline answer for one completed simulation."""
+        evidence_items = 1 if summary else 0
+        return {
+            "response": (
+                f"단일 시뮬레이션 기준 결론: {summary or '아직 완료된 결과가 없습니다.'}\n"
+                "하나의 경로만 보기 때문에 반복성, 분기, 민감도, ensemble_frequency는 판단할 수 없습니다."
+            ),
+            "comparison_score": evidence_items,
+            "evidence_items": evidence_items,
+            "dimensions": ["single_outcome"],
+            "requirement": requirement,
+        }
+
+    def _build_deterministic_multiverse_answer(
+        self,
+        question: str,
+        aggregate: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        clusters = aggregate.get("outcome_clusters", [])
+        axes = aggregate.get("sensitivity_axes", [])
+        evidence_items = sum(len(cluster.get("evidence", [])) or len(cluster.get("universe_ids", [])) for cluster in clusters)
+        cluster_lines = "\n".join(
+            f"- {cluster.get('label')}: {cluster.get('ensemble_frequency')} / 근거 universe {', '.join(cluster.get('universe_ids', []))}"
+            for cluster in clusters[:5]
+        ) or "- 아직 cluster를 만들 만큼 완료된 universe가 없습니다."
+        axis_lines = "\n".join(
+            f"- {axis.get('universe_id')}: {axis.get('label')} · {axis.get('polarity')} · {axis.get('status')}"
+            for axis in axes[:6]
+        )
+        improvement_score = len(clusters) + len(axes) + evidence_items
+        response = (
+            "결론: 같은 주제라면 멀티버스 결과가 단일 실행보다 더 좋습니다. "
+            "단일 실행은 하나의 결론만 주지만, 멀티버스는 반복 패턴과 갈리는 조건을 분리해서 보여줍니다.\n\n"
+            "**반복 패턴 — ensemble_frequency**\n"
+            f"{cluster_lines}\n\n"
+            "**민감도/분기 축**\n"
+            f"{axis_lines or '- 아직 비교 가능한 sensitivity axis가 없습니다.'}\n\n"
+            "주의: ensemble_frequency는 실제 확률이 아니라 시뮬레이션 세계선 빈도입니다. "
+            f"질문 `{question}`에 대해서는 공통 패턴과 분기 조건을 함께 보는 쪽이 의사결정에 더 유리합니다."
+        )
+        return {
+            "response": response,
+            "answer_mode": "deterministic_multiverse_report_agent",
+            "sources": [cluster.get("cluster_id", "") for cluster in clusters],
+            "tool_calls": [],
+            "comparison": {
+                "is_better_than_single_baseline": improvement_score > 1,
+                "improvement_score": improvement_score,
+                "cluster_count": len(clusters),
+                "sensitivity_axis_count": len(axes),
+                "evidence_items": evidence_items,
+                "reason": "멀티버스는 단일 outcome 외에 반복 빈도, 분기 축, cluster evidence를 추가로 제공합니다.",
+            },
+            "aggregate": aggregate,
+        }
+
+    def answer_report_agent_question(
+        self,
+        multiverse_id: str,
+        question: str,
+        use_llm: bool = False,
+        clustering_strategy: str = "semantic",
+    ) -> Dict[str, Any]:
+        """Answer a multiverse report question using aggregate context.
+
+        LLM mode is opt-in and fails closed to deterministic context answers when
+        credentials are absent or placeholder/dummy keys are configured.
+        """
+        aggregate = self.aggregate_experiment(multiverse_id, clustering_strategy=clustering_strategy)
+        deterministic = self._build_deterministic_multiverse_answer(question, aggregate)
+        if not use_llm:
+            return deterministic
+
+        api_key = getattr(Config, "LLM_API_KEY", "") or ""
+        if not api_key or api_key.lower() in {"dummy", "placeholder", "test", "changeme"}:
+            deterministic["answer_mode"] = "deterministic_multiverse_report_agent_no_llm_key"
+            return deterministic
+
+        try:
+            context = aggregate.get("report_agent_context", {})
+            prompt = (
+                "You are the MiroFish Multiverse Report Agent. Answer in Korean. "
+                "Use the provided multiverse context only; do not treat ensemble_frequency as real probability.\n\n"
+                f"Question: {question}\n\nContext:\n{json.dumps(context, ensure_ascii=False)[:12000]}"
+            )
+            response = LLMClient().chat([
+                {"role": "system", "content": "Answer concisely with conclusion first, evidence, and caveat."},
+                {"role": "user", "content": prompt},
+            ], temperature=0.2, max_tokens=1600)
+            deterministic["response"] = response
+            deterministic["answer_mode"] = "llm_assisted_multiverse_report_agent"
+            return deterministic
+        except Exception as exc:
+            logger.warning("LLM-assisted multiverse answer failed; returning deterministic answer: %s", exc)
+            deterministic["answer_mode"] = "deterministic_multiverse_report_agent_llm_failed"
+            deterministic["llm_error"] = str(exc)
+            return deterministic
 
     def _build_ensemble_report_markdown(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> str:
         clusters = aggregate.get("outcome_clusters", [])
@@ -896,13 +1048,14 @@ class MultiverseManager:
             "children": child_summaries,
             "generated_at": datetime.now().isoformat(),
         }
-        if clustering_strategy not in {"keyword", "semantic"}:
+        if clustering_strategy not in {"keyword", "semantic", "llm"}:
             clustering_strategy = "keyword"
-        aggregate["outcome_clusters"] = (
-            self._build_semantic_outcome_clusters(child_summaries)
-            if clustering_strategy == "semantic"
-            else self._build_outcome_clusters(child_summaries)
-        )
+        if clustering_strategy == "llm":
+            aggregate["outcome_clusters"] = self._build_llm_assisted_outcome_clusters(child_summaries)
+        elif clustering_strategy == "semantic":
+            aggregate["outcome_clusters"] = self._build_semantic_outcome_clusters(child_summaries)
+        else:
+            aggregate["outcome_clusters"] = self._build_outcome_clusters(child_summaries)
         aggregate["report_agent_context"] = self._build_report_agent_context(experiment, aggregate)
         aggregate["ensemble_report_markdown"] = self._build_ensemble_report_markdown(experiment, aggregate)
         experiment.aggregate = aggregate
