@@ -88,6 +88,23 @@ class MultiverseReportAgentComparisonTest(unittest.TestCase):
         self.assertIn("comparison", data)
         self.assertTrue(data["comparison"]["is_better_than_single_baseline"])
 
+    def test_compare_single_route_returns_product_verdict(self):
+        manager, experiment = self._completed_multiverse()
+
+        response = self.client.post(
+            f"/api/simulation/multiverse/{experiment.multiverse_id}/compare-single",
+            json={"clustering_strategy": "semantic", "use_llm": False},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.get_json()
+        self.assertTrue(payload["success"])
+        data = payload["data"]
+        self.assertEqual(data["comparison_type"], "single_vs_multiverse")
+        self.assertEqual(data["judgement"]["verdict"], "PASS")
+        self.assertGreater(data["multiverse"]["evidence_items"], data["single"]["evidence_items"])
+        self.assertIn("Single-run vs Multiverse", data["report_markdown"])
+
 
 if __name__ == "__main__":
     unittest.main()

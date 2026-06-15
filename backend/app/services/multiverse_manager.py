@@ -935,6 +935,105 @@ class MultiverseManager:
             deterministic["llm_error"] = str(exc)
             return deterministic
 
+    def compare_single_to_multiverse(
+        self,
+        multiverse_id: str,
+        single_summary: str = "",
+        question: str = "단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?",
+        clustering_strategy: str = "semantic",
+        use_llm: bool = False,
+    ) -> Dict[str, Any]:
+        """Product-shaped comparison between the old single-run path and multiverse output."""
+        experiment = self.get_experiment(multiverse_id)
+        if not experiment:
+            raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
+
+        aggregate = self.aggregate_experiment(multiverse_id, clustering_strategy=clustering_strategy)
+        if not single_summary:
+            for child in aggregate.get("children", []):
+                if child.get("status") == "completed" and child.get("config_reasoning"):
+                    single_summary = child.get("config_reasoning", "")
+                    break
+        single = self.build_single_run_baseline_answer(experiment.base_requirement, single_summary)
+        multiverse_answer = self.answer_report_agent_question(
+            multiverse_id=multiverse_id,
+            question=question,
+            use_llm=use_llm,
+            clustering_strategy=clustering_strategy,
+        )
+        comparison = multiverse_answer.get("comparison", {})
+        pass_conditions = {
+            "more_evidence_than_single": comparison.get("evidence_items", 0) > single.get("evidence_items", 0),
+            "has_clusters": comparison.get("cluster_count", 0) >= 1,
+            "has_sensitivity_axes": comparison.get("sensitivity_axis_count", 0) >= 1,
+            "route_ready_answer": bool(multiverse_answer.get("response")),
+        }
+        judgement = "PASS" if all(pass_conditions.values()) else "WARN" if any(pass_conditions.values()) else "FAIL"
+        return {
+            "comparison_type": "single_vs_multiverse",
+            "multiverse_id": multiverse_id,
+            "topic": experiment.base_requirement,
+            "single": {
+                "summary": single_summary,
+                "comparison_score": single.get("comparison_score", 0),
+                "evidence_items": single.get("evidence_items", 0),
+                "limitations": ["single_outcome_only", "no_ensemble_frequency", "no_sensitivity_axes"],
+            },
+            "multiverse": {
+                "universe_count": aggregate.get("universe_count", 0),
+                "completed_count": aggregate.get("completed_count", 0),
+                "cluster_count": comparison.get("cluster_count", 0),
+                "sensitivity_axis_count": comparison.get("sensitivity_axis_count", 0),
+                "evidence_items": comparison.get("evidence_items", 0),
+                "improvement_score": comparison.get("improvement_score", 0),
+                "answer_mode": multiverse_answer.get("answer_mode"),
+                "answer": multiverse_answer.get("response", ""),
+            },
+            "judgement": {
+                "verdict": judgement,
+                "is_better_than_single_baseline": comparison.get("is_better_than_single_baseline", False),
+                "pass_conditions": pass_conditions,
+                "why": comparison.get("reason", ""),
+                "caveat": "ensemble_frequency는 실제 확률이 아니라 시뮬레이션 세계선 빈도입니다.",
+            },
+            "aggregate": aggregate,
+            "report_markdown": self._build_comparison_markdown(single, multiverse_answer, aggregate, judgement),
+            "generated_at": datetime.now().isoformat(),
+        }
+
+    def _build_comparison_markdown(
+        self,
+        single: Dict[str, Any],
+        multiverse_answer: Dict[str, Any],
+        aggregate: Dict[str, Any],
+        judgement: str,
+    ) -> str:
+        comparison = multiverse_answer.get("comparison", {})
+        return f"""# Single-run vs Multiverse Comparison
+
+## Verdict
+- {judgement}
+- 멀티버스 개선 판단: {comparison.get('is_better_than_single_baseline', False)}
+
+## Single-run baseline
+- evidence_items: {single.get('evidence_items', 0)}
+- limitations: single_outcome_only, no ensemble_frequency, no sensitivity_axes
+
+## Multiverse
+- universes: {aggregate.get('universe_count', 0)}
+- completed: {aggregate.get('completed_count', 0)}
+- clusters: {comparison.get('cluster_count', 0)}
+- sensitivity_axes: {comparison.get('sensitivity_axis_count', 0)}
+- evidence_items: {comparison.get('evidence_items', 0)}
+- improvement_score: {comparison.get('improvement_score', 0)}
+
+## Report Agent answer
+{multiverse_answer.get('response', '')}
+
+## Caveat
+ensemble_frequency는 실제 확률이 아니라 시뮬레이션 세계선 빈도입니다.
+"""
+
     def _build_ensemble_report_markdown(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> str:
         clusters = aggregate.get("outcome_clusters", [])
         cluster_lines = "\n".join(

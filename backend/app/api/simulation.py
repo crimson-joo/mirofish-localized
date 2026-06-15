@@ -3022,6 +3022,26 @@ def get_multiverse_report_agent_context(multiverse_id: str):
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@simulation_bp.route('/multiverse/<multiverse_id>/compare-single', methods=['POST', 'GET'])
+def compare_single_with_multiverse(multiverse_id: str):
+    """Return product-shaped single-run vs multiverse comparison."""
+    try:
+        data = request.get_json(silent=True) or {}
+        result = MultiverseManager().compare_single_to_multiverse(
+            multiverse_id=multiverse_id,
+            single_summary=data.get('single_summary', ''),
+            question=data.get('question', '단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?'),
+            clustering_strategy=data.get('clustering_strategy') or request.args.get('clustering_strategy', 'semantic'),
+            use_llm=data.get('use_llm', False),
+        )
+        return jsonify({"success": True, "data": result})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"Multiverse single-run comparison failed: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @simulation_bp.route('/multiverse/<multiverse_id>/report-agent-chat', methods=['POST'])
 def chat_with_multiverse_report_agent(multiverse_id: str):
     """Answer a question from multiverse aggregate context and compare to single-run baseline."""
