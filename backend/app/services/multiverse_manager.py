@@ -12,17 +12,20 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import threading
 import uuid
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 from ..config import Config
 from ..utils.logger import get_logger
 from .simulation_manager import SimulationManager, SimulationStatus
 from .simulation_runner import RunnerStatus, SimulationRunner
+from ..models.task import TaskManager, TaskStatus
 
 logger = get_logger("mirofish.multiverse")
 
@@ -456,6 +459,83 @@ class MultiverseManager:
             "children": children_result,
         }
 
+    def prepare_experiment_async(
+        self,
+        multiverse_id: str,
+        document_text: str = "",
+        defined_entity_types: Optional[List[str]] = None,
+        use_llm_for_profiles: bool = True,
+        parallel_profile_count: int = 3,
+        force: bool = False,
+        use_thread: bool = True,
+    ) -> Dict[str, Any]:
+        """Queue multiverse preparation through TaskManager.
+
+        The synchronous prepare_experiment method remains the implementation core;
+        this wrapper exposes honest progress/result state for the UI and allows
+        tests to run deterministically with use_thread=False.
+        """
+        experiment = self.get_experiment(multiverse_id)
+        if not experiment:
+            raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
+
+        task_manager = TaskManager()
+        task_id = task_manager.create_task(
+            task_type="multiverse_prepare",
+            metadata={
+                "multiverse_id": multiverse_id,
+                "project_id": experiment.project_id,
+                "universe_count": len(experiment.children),
+            },
+        )
+
+        def run_prepare() -> None:
+            try:
+                task_manager.update_task(
+                    task_id,
+                    status=TaskStatus.PROCESSING,
+                    progress=5,
+                    message="멀티버스 prepare queue 시작",
+                    progress_detail={"multiverse_id": multiverse_id, "phase": "prepare_started"},
+                )
+                result = self.prepare_experiment(
+                    multiverse_id=multiverse_id,
+                    document_text=document_text,
+                    defined_entity_types=defined_entity_types,
+                    use_llm_for_profiles=use_llm_for_profiles,
+                    parallel_profile_count=parallel_profile_count,
+                    force=force,
+                )
+                task_manager.complete_task(task_id, result)
+                task_manager.update_task(
+                    task_id,
+                    message="멀티버스 prepare queue 완료",
+                    progress_detail={
+                        "multiverse_id": multiverse_id,
+                        "prepared_count": result.get("prepared_count", 0),
+                        "skipped_count": result.get("skipped_count", 0),
+                        "failed_count": result.get("failed_count", 0),
+                    },
+                )
+            except Exception as exc:  # pragma: no cover - exercised via API/ops path
+                logger.error("Multiverse async prepare failed: %s", exc)
+                task_manager.fail_task(task_id, str(exc))
+
+        if use_thread:
+            thread = threading.Thread(target=run_prepare, daemon=True)
+            thread.start()
+            status = "queued"
+        else:
+            run_prepare()
+            status = "completed"
+
+        return {
+            "multiverse_id": multiverse_id,
+            "task_id": task_id,
+            "status": status,
+            "message": "멀티버스 prepare task가 등록되었습니다.",
+        }
+
     def start_experiment(
         self,
         multiverse_id: str,
@@ -529,6 +609,20 @@ class MultiverseManager:
             "failed": failed,
         }
 
+    def auto_advance_queue(
+        self,
+        multiverse_id: str,
+        platform: str = "parallel",
+    ) -> Dict[str, Any]:
+        """Scheduler tick: fill newly opened run slots from ready/queued children."""
+        result = self.start_experiment(multiverse_id=multiverse_id, platform=platform)
+        result["scheduler"] = {
+            "mode": "auto_advance",
+            "max_parallel_observed": result.get("running_count", 0),
+            "message": "열린 실행 슬롯에 다음 ready/queued universe를 자동 투입했습니다.",
+        }
+        return result
+
     def refresh_status(self, multiverse_id: str) -> Dict[str, Any]:
         """Refresh child statuses from simulation/run state and schedule more queued runs if slots are open."""
         experiment = self.get_experiment(multiverse_id)
@@ -569,6 +663,67 @@ class MultiverseManager:
             "children": [child.to_dict() for child in experiment.children],
         }
 
+    @staticmethod
+    def _tokenize_outcome(text: str) -> Set[str]:
+        tokens = set(re.findall(r"[A-Za-z가-힣0-9]{2,}", (text or "").lower()))
+        stopwords = {"으로", "에서", "그리고", "with", "that", "this", "the", "and", "된다", "된다"}
+        return {token for token in tokens if token not in stopwords}
+
+    def _build_semantic_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Lightweight semantic clustering over child outcome text.
+
+        This is intentionally deterministic for local/runtime safety. It groups
+        completed child summaries by token-overlap similarity and includes short
+        evidence snippets so a later LLM/embedding implementation can replace the
+        similarity function without changing the API shape.
+        """
+        completed = [child for child in child_summaries if child.get("status") == "completed"]
+        if not completed:
+            return []
+
+        token_sets = {child["universe_id"]: self._tokenize_outcome(child.get("config_reasoning", "")) for child in completed}
+        assigned: Set[str] = set()
+        clusters: List[Dict[str, Any]] = []
+        threshold = 0.22
+        for child in completed:
+            universe_id = child["universe_id"]
+            if universe_id in assigned:
+                continue
+            cluster_children = [child]
+            assigned.add(universe_id)
+            base_tokens = token_sets[universe_id]
+            for other in completed:
+                other_id = other["universe_id"]
+                if other_id in assigned:
+                    continue
+                other_tokens = token_sets[other_id]
+                union = base_tokens | other_tokens
+                similarity = (len(base_tokens & other_tokens) / len(union)) if union else 0.0
+                if similarity >= threshold:
+                    cluster_children.append(other)
+                    assigned.add(other_id)
+                    base_tokens = base_tokens | other_tokens
+
+            common_terms = sorted(base_tokens, key=lambda token: (-sum(token in token_sets[item["universe_id"]] for item in cluster_children), token))[:6]
+            evidence = [
+                {
+                    "universe_id": item["universe_id"],
+                    "snippet": (item.get("config_reasoning", "") or "")[:160],
+                }
+                for item in cluster_children
+            ]
+            clusters.append({
+                "cluster_id": f"semantic_{len(clusters) + 1}",
+                "label": "Semantic outcome cluster",
+                "universe_ids": [item["universe_id"] for item in cluster_children],
+                "frequency": len(cluster_children),
+                "ensemble_frequency": f"{len(cluster_children)}/{len(child_summaries)}",
+                "common_terms": common_terms,
+                "evidence": evidence,
+                "method": "deterministic_token_similarity",
+            })
+        return clusters
+
     def _build_outcome_clusters(self, child_summaries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         keyword_families = {
             "institutional_defense": ["은행", "방어", "기관", "로비", "incumbent", "defense"],
@@ -603,6 +758,31 @@ class MultiverseManager:
             })
         return clusters
 
+    def _build_report_agent_context(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> Dict[str, Any]:
+        return {
+            "context_type": "multiverse_ensemble",
+            "multiverse_id": experiment.multiverse_id,
+            "graph_id": experiment.graph_id,
+            "base_requirement": experiment.base_requirement,
+            "probability_caveat": aggregate.get("probability_note"),
+            "outcome_clusters": aggregate.get("outcome_clusters", []),
+            "sensitivity_axes": aggregate.get("sensitivity_axes", []),
+            "child_simulations": [
+                {
+                    "universe_id": child.get("universe_id"),
+                    "simulation_id": child.get("simulation_id"),
+                    "status": child.get("status"),
+                    "summary": child.get("config_reasoning", ""),
+                }
+                for child in aggregate.get("children", [])
+            ],
+            "suggested_questions": [
+                "질문: 어떤 universe들이 같은 결론으로 묶였고 근거는 무엇인가?",
+                "질문: 결과가 가장 크게 갈린 scenario axis는 무엇인가?",
+                "질문: ensemble_frequency를 실제 확률이 아닌 시뮬레이션 빈도로 어떻게 해석해야 하는가?",
+            ],
+        }
+
     def _build_ensemble_report_markdown(self, experiment: MultiverseExperiment, aggregate: Dict[str, Any]) -> str:
         clusters = aggregate.get("outcome_clusters", [])
         cluster_lines = "\n".join(
@@ -633,7 +813,7 @@ class MultiverseManager:
 이 값은 실제 확률(calibrated real-world probability)이 아니라 simulation branch의 ensemble_frequency입니다. 보고서에서는 반복적으로 나타난 패턴과 민감한 가정을 구분하는 근거로만 사용합니다.
 """
 
-    def aggregate_experiment(self, multiverse_id: str) -> Dict[str, Any]:
+    def aggregate_experiment(self, multiverse_id: str, clustering_strategy: str = "keyword") -> Dict[str, Any]:
         """Summarize child simulation states into ensemble-frequency evidence."""
 
         experiment = self.get_experiment(multiverse_id)
@@ -679,7 +859,20 @@ class MultiverseManager:
             "universe_count": len(experiment.children),
             "completed_count": len(completed_children),
             "failed_count": len(failed_children),
+            "running_count": status_counter.get("running", 0),
+            "ready_count": status_counter.get("ready", 0),
+            "queued_count": status_counter.get("queued", 0),
+            "progress": {
+                "completed": len(completed_children),
+                "running": status_counter.get("running", 0),
+                "ready": status_counter.get("ready", 0),
+                "queued": status_counter.get("queued", 0),
+                "failed": len(failed_children),
+                "total": len(experiment.children),
+                "completion_ratio": (len(completed_children) / len(experiment.children)) if experiment.children else 0,
+            },
             "status_frequency": dict(status_counter),
+            "clustering_strategy": clustering_strategy,
             "probability_note": (
                 "Values are ensemble_frequency from simulated worldlines, not calibrated "
                 "real-world probabilities. Treat them as evidence for robust vs sensitive outcomes."
@@ -703,7 +896,14 @@ class MultiverseManager:
             "children": child_summaries,
             "generated_at": datetime.now().isoformat(),
         }
-        aggregate["outcome_clusters"] = self._build_outcome_clusters(child_summaries)
+        if clustering_strategy not in {"keyword", "semantic"}:
+            clustering_strategy = "keyword"
+        aggregate["outcome_clusters"] = (
+            self._build_semantic_outcome_clusters(child_summaries)
+            if clustering_strategy == "semantic"
+            else self._build_outcome_clusters(child_summaries)
+        )
+        aggregate["report_agent_context"] = self._build_report_agent_context(experiment, aggregate)
         aggregate["ensemble_report_markdown"] = self._build_ensemble_report_markdown(experiment, aggregate)
         experiment.aggregate = aggregate
         self._save_experiment(experiment)

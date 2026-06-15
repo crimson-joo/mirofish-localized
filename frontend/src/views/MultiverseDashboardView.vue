@@ -39,9 +39,29 @@
           <p>기본값은 Core persona, Graph memory ON, 24 rounds, max_parallel=2입니다.</p>
         </div>
         <div class="control-actions">
-          <button class="primary-btn" :disabled="busy" @click="prepareExperiment">Prepare Queue</button>
+          <button class="primary-btn" :disabled="busy" @click="prepareExperiment">Async Prepare Queue</button>
           <button class="primary-btn accent" :disabled="busy" @click="startExperiment">Run Queue</button>
-          <button class="ghost-btn" :disabled="busy" @click="loadReport">Aggregate Report</button>
+          <button class="ghost-btn" :disabled="busy" @click="advanceExperiment">Auto-advance</button>
+          <button class="ghost-btn" :disabled="busy" @click="loadReport">Semantic Aggregate</button>
+        </div>
+      </section>
+
+      <section v-if="prepareTask || aggregate?.progress" class="progress-panel">
+        <div>
+          <p class="eyebrow">Progress</p>
+          <h2>Prepare / Run 진행률</h2>
+        </div>
+        <div class="progress-grid">
+          <div v-if="prepareTask" class="summary-card wide">
+            <span class="label">Prepare task</span>
+            <strong>{{ prepareTask.status }} · {{ prepareTask.progress }}%</strong>
+            <p>{{ prepareTask.message }}</p>
+          </div>
+          <div v-if="aggregate?.progress" class="summary-card wide">
+            <span class="label">Run progress</span>
+            <strong>{{ aggregate.progress.completed }}/{{ aggregate.progress.total }} completed</strong>
+            <p>running {{ aggregate.progress.running }} · ready {{ aggregate.progress.ready }} · queued {{ aggregate.progress.queued }} · failed {{ aggregate.progress.failed }}</p>
+          </div>
         </div>
       </section>
 
@@ -105,7 +125,9 @@ import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import LanguageSwitcher from '../components/LanguageSwitcher.vue'
 import {
+  advanceMultiverse,
   getMultiverse,
+  getMultiversePrepareStatus,
   getMultiverseReport,
   getMultiverseStatus,
   prepareMultiverse,
@@ -118,6 +140,7 @@ const multiverseId = computed(() => route.params.multiverseId)
 const experiment = ref(null)
 const aggregate = ref(null)
 const reportMarkdown = ref('')
+const prepareTask = ref(null)
 const busy = ref(false)
 let pollTimer = null
 
@@ -137,7 +160,7 @@ const refreshStatus = async () => {
 const loadReport = async () => {
   busy.value = true
   try {
-    const res = await getMultiverseReport(multiverseId.value)
+    const res = await getMultiverseReport(multiverseId.value, { clustering_strategy: 'semantic' })
     aggregate.value = res.data.aggregate
     reportMarkdown.value = res.data.report_markdown
     await loadExperiment()
@@ -149,7 +172,11 @@ const loadReport = async () => {
 const prepareExperiment = async () => {
   busy.value = true
   try {
-    await prepareMultiverse(multiverseId.value, { use_llm_for_profiles: true })
+    const res = await prepareMultiverse(multiverseId.value, { use_llm_for_profiles: true, async: true })
+    if (res.data?.task_id) {
+      const taskRes = await getMultiversePrepareStatus(multiverseId.value, res.data.task_id)
+      prepareTask.value = taskRes.data
+    }
     await loadExperiment()
   } finally {
     busy.value = false
@@ -161,6 +188,17 @@ const startExperiment = async () => {
   try {
     await startMultiverse(multiverseId.value, { platform: 'parallel' })
     await refreshStatus()
+  } finally {
+    busy.value = false
+  }
+}
+
+const advanceExperiment = async () => {
+  busy.value = true
+  try {
+    await advanceMultiverse(multiverseId.value, { platform: 'parallel' })
+    await refreshStatus()
+    await loadReport()
   } finally {
     busy.value = false
   }
@@ -200,8 +238,8 @@ h1, h2, h3 { margin: 0; }
 .subtitle, .control-panel p, .universe-card p, .note, .empty-state { color: #96a3b8; }
 .header-actions, .control-actions { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .mv-content { margin-top: 28px; display: flex; flex-direction: column; gap: 22px; }
-.summary-grid, .aggregate-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 14px; }
-.summary-card, .control-panel, .universe-card, .report-panel {
+.summary-grid, .aggregate-grid, .progress-grid { display: grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap: 14px; }
+.summary-card, .control-panel, .progress-panel, .universe-card, .report-panel {
   background: rgba(255,255,255,0.055);
   border: 1px solid rgba(141,232,255,0.18);
   border-radius: 18px;

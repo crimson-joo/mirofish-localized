@@ -203,15 +203,23 @@ export const prepareMultiverse = (multiverseId, data = {}) => {
   return requestWithRetry(() => service.post(`/api/simulation/multiverse/${multiverseId}/prepare`, data), 3, 1000)
 }
 
+export const getMultiversePrepareStatus = (multiverseId, taskId) => {
+  return service.get(`/api/simulation/multiverse/${multiverseId}/prepare/status`, { params: { task_id: taskId } })
+}
+
 export const startMultiverse = (multiverseId, data = {}) => {
   return requestWithRetry(() => service.post(`/api/simulation/multiverse/${multiverseId}/start`, data), 3, 1000)
+}
+
+export const advanceMultiverse = (multiverseId, data = {}) => {
+  return requestWithRetry(() => service.post(`/api/simulation/multiverse/${multiverseId}/advance`, data), 3, 1000)
 }
 
 export const getMultiverseStatus = (multiverseId) => {
   return service.get(`/api/simulation/multiverse/${multiverseId}/status`)
 }
 
-export const getMultiverseReport = (multiverseId) => {
-  return service.get(`/api/simulation/multiverse/${multiverseId}/report`)
+export const getMultiverseReport = (multiverseId, params = {}) => {
+  return service.get(`/api/simulation/multiverse/${multiverseId}/report`, { params })
 }
 

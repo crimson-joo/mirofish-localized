@@ -17,6 +17,7 @@ from ..services.multiverse_manager import MultiverseManager
 from ..utils.logger import get_logger
 from ..utils.locale import t, get_locale, set_locale
 from ..models.project import ProjectManager
+from ..models.task import TaskManager
 
 logger = get_logger('mirofish.api.simulation')
 
@@ -2856,8 +2857,10 @@ def list_multiverse_experiments():
 def aggregate_multiverse_experiment(multiverse_id: str):
     """Generate/refresh ensemble-frequency aggregate for an experiment."""
     try:
+        data = request.get_json(silent=True) or {}
+        clustering_strategy = data.get('clustering_strategy') or request.args.get('clustering_strategy', 'keyword')
         manager = MultiverseManager()
-        aggregate = manager.aggregate_experiment(multiverse_id)
+        aggregate = manager.aggregate_experiment(multiverse_id, clustering_strategy=clustering_strategy)
         experiment = manager.get_experiment(multiverse_id)
         return jsonify({
             "success": True,
@@ -2885,19 +2888,49 @@ def prepare_multiverse_experiment(multiverse_id: str):
         document_text = data.get('document_text')
         if document_text is None:
             document_text = ProjectManager.get_extracted_text(experiment.project_id) or ""
-        result = manager.prepare_experiment(
-            multiverse_id=multiverse_id,
-            document_text=document_text,
-            defined_entity_types=data.get('entity_types'),
-            use_llm_for_profiles=data.get('use_llm_for_profiles', True),
-            parallel_profile_count=data.get('parallel_profile_count', 3),
-            force=data.get('force', False),
-        )
+        if data.get('async', False):
+            result = manager.prepare_experiment_async(
+                multiverse_id=multiverse_id,
+                document_text=document_text,
+                defined_entity_types=data.get('entity_types'),
+                use_llm_for_profiles=data.get('use_llm_for_profiles', True),
+                parallel_profile_count=data.get('parallel_profile_count', 3),
+                force=data.get('force', False),
+                use_thread=data.get('use_thread', True),
+            )
+        else:
+            result = manager.prepare_experiment(
+                multiverse_id=multiverse_id,
+                document_text=document_text,
+                defined_entity_types=data.get('entity_types'),
+                use_llm_for_profiles=data.get('use_llm_for_profiles', True),
+                parallel_profile_count=data.get('parallel_profile_count', 3),
+                force=data.get('force', False),
+            )
         return jsonify({"success": True, "data": result})
     except ValueError as e:
         return jsonify({"success": False, "error": str(e)}), 404
     except Exception as e:
         logger.error(f"准备Multiverse实验失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@simulation_bp.route('/multiverse/<multiverse_id>/prepare/status', methods=['GET'])
+def get_multiverse_prepare_status(multiverse_id: str):
+    """Return TaskManager status for async multiverse preparation."""
+    try:
+        task_id = request.args.get('task_id')
+        if not task_id:
+            return jsonify({"success": False, "error": "task_id is required"}), 400
+        task = TaskManager().get_task(task_id)
+        if not task:
+            return jsonify({"success": False, "error": f"Task not found: {task_id}"}), 404
+        data = task.to_dict()
+        if data.get("metadata", {}).get("multiverse_id") != multiverse_id:
+            return jsonify({"success": False, "error": "task does not belong to this multiverse"}), 400
+        return jsonify({"success": True, "data": data})
+    except Exception as e:
+        logger.error(f"获取Multiverse prepare任务状态失败: {str(e)}")
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
@@ -2920,6 +2953,23 @@ def start_multiverse_experiment(multiverse_id: str):
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
 
 
+@simulation_bp.route('/multiverse/<multiverse_id>/advance', methods=['POST'])
+def advance_multiverse_queue(multiverse_id: str):
+    """Run one scheduler tick that fills open child-run slots."""
+    try:
+        data = request.get_json() or {}
+        result = MultiverseManager().auto_advance_queue(
+            multiverse_id=multiverse_id,
+            platform=data.get('platform', 'parallel'),
+        )
+        return jsonify({"success": True, "data": result})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 400
+    except Exception as e:
+        logger.error(f"推进Multiverse队列失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
 @simulation_bp.route('/multiverse/<multiverse_id>/status', methods=['GET'])
 def get_multiverse_status(multiverse_id: str):
     """Refresh and return parent/child status."""
@@ -2939,8 +2989,10 @@ def get_multiverse_status(multiverse_id: str):
 def get_multiverse_report(multiverse_id: str):
     """Generate an aggregate report from the current child states."""
     try:
+        data = request.get_json(silent=True) or {}
+        clustering_strategy = data.get('clustering_strategy') or request.args.get('clustering_strategy', 'keyword')
         manager = MultiverseManager()
-        aggregate = manager.aggregate_experiment(multiverse_id)
+        aggregate = manager.aggregate_experiment(multiverse_id, clustering_strategy=clustering_strategy)
         return jsonify({
             "success": True,
             "data": {
@@ -2953,4 +3005,18 @@ def get_multiverse_report(multiverse_id: str):
         return jsonify({"success": False, "error": str(e)}), 404
     except Exception as e:
         logger.error(f"生成Multiverse报告失败: {str(e)}")
+        return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
+
+
+@simulation_bp.route('/multiverse/<multiverse_id>/report-agent-context', methods=['GET'])
+def get_multiverse_report_agent_context(multiverse_id: str):
+    """Return multiverse aggregate context shaped for Report Agent Q&A."""
+    try:
+        manager = MultiverseManager()
+        aggregate = manager.aggregate_experiment(multiverse_id, clustering_strategy=request.args.get('clustering_strategy', 'semantic'))
+        return jsonify({"success": True, "data": aggregate.get("report_agent_context", {})})
+    except ValueError as e:
+        return jsonify({"success": False, "error": str(e)}), 404
+    except Exception as e:
+        logger.error(f"获取Multiverse Report Agent上下文失败: {str(e)}")
         return jsonify({"success": False, "error": str(e), "traceback": traceback.format_exc()}), 500
