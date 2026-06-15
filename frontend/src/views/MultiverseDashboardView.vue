@@ -43,6 +43,7 @@
           <button class="primary-btn accent" :disabled="busy" @click="startExperiment">Run Queue</button>
           <button class="ghost-btn" :disabled="busy" @click="advanceExperiment">Auto-advance</button>
           <button class="ghost-btn" :disabled="busy" @click="loadReport">Semantic Aggregate</button>
+          <button class="ghost-btn" :disabled="busy" @click="loadComparison">단일 vs 멀티버스 비교</button>
         </div>
       </section>
 
@@ -80,6 +81,56 @@
           </dl>
           <button class="link-btn" @click="router.push({ name: 'SimulationRun', params: { simulationId: child.simulation_id } })">child simulation 보기 →</button>
         </article>
+      </section>
+
+
+      <section class="comparison-panel" data-testid="multiverse-comparison-panel">
+        <div class="report-header">
+          <div>
+            <p class="eyebrow">Single vs Multiverse</p>
+            <h2>단일 실행 대비 개선 판단</h2>
+          </div>
+          <button class="primary-btn" :disabled="busy" @click="loadComparison">비교 새로고침</button>
+        </div>
+        <div v-if="comparison" class="comparison-grid">
+          <div class="summary-card">
+            <span class="label">판정</span>
+            <strong :class="comparison.judgement?.verdict === 'PASS' ? 'pass-text' : 'warn-text'">{{ comparison.judgement?.verdict }}</strong>
+            <p>{{ comparison.judgement?.caveat }}</p>
+          </div>
+          <div class="summary-card">
+            <span class="label">단일 실행</span>
+            <strong>{{ comparison.single?.evidence_items || 0 }} evidence</strong>
+            <p>결론 1개 · 반복성/민감도 판단 불가</p>
+          </div>
+          <div class="summary-card">
+            <span class="label">멀티버스</span>
+            <strong>{{ comparison.multiverse?.improvement_score || 0 }} score</strong>
+            <p>cluster {{ comparison.multiverse?.cluster_count || 0 }} · axis {{ comparison.multiverse?.sensitivity_axis_count || 0 }}</p>
+          </div>
+          <div class="summary-card wide">
+            <span class="label">왜 좋아졌나</span>
+            <p>{{ comparison.judgement?.why }}</p>
+          </div>
+        </div>
+        <p v-else class="empty-state">비교 새로고침을 누르면 단일 실행 baseline과 멀티버스 결과를 PASS/WARN/FAIL로 비교합니다.</p>
+      </section>
+
+      <section class="report-agent-panel" data-testid="multiverse-report-agent-panel">
+        <div class="report-header">
+          <div>
+            <p class="eyebrow">Report Agent</p>
+            <h2>보고서 AI(Report Agent)에게 묻기</h2>
+          </div>
+        </div>
+        <div class="suggested-questions">
+          <button v-for="q in suggestedQuestions" :key="q" class="ghost-btn small" :disabled="busy" @click="askQuestion(q)">{{ q }}</button>
+        </div>
+        <div class="agent-input-row">
+          <input v-model="agentQuestion" placeholder="예: 어떤 조건에서 결과가 갈렸어?" @keyup.enter="askQuestion(agentQuestion)" />
+          <button class="primary-btn" :disabled="busy || !agentQuestion" @click="askQuestion(agentQuestion)">질문</button>
+        </div>
+        <div v-if="agentAnswer" class="agent-answer">{{ agentAnswer }}</div>
       </section>
 
       <section class="report-panel">
@@ -130,6 +181,8 @@ import {
   getMultiversePrepareStatus,
   getMultiverseReport,
   getMultiverseStatus,
+  compareMultiverseWithSingle,
+  chatMultiverseReportAgent,
   prepareMultiverse,
   startMultiverse
 } from '../api/simulation'
@@ -140,6 +193,15 @@ const multiverseId = computed(() => route.params.multiverseId)
 const experiment = ref(null)
 const aggregate = ref(null)
 const reportMarkdown = ref('')
+const comparison = ref(null)
+const agentQuestion = ref('단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?')
+const agentAnswer = ref('')
+const suggestedQuestions = [
+  '단일 시뮬레이션과 비교해 멀티버스가 더 나은 점이 뭐야?',
+  '어떤 결론이 반복됐어?',
+  '어떤 조건에서 결과가 갈렸어?',
+  'ensemble_frequency는 어떻게 해석해야 해?'
+]
 const prepareTask = ref(null)
 const busy = ref(false)
 let pollTimer = null
@@ -204,6 +266,32 @@ const advanceExperiment = async () => {
   }
 }
 
+
+const loadComparison = async () => {
+  busy.value = true
+  try {
+    const res = await compareMultiverseWithSingle(multiverseId.value, { clustering_strategy: 'semantic', use_llm: false })
+    comparison.value = res.data
+    aggregate.value = res.data?.aggregate || aggregate.value
+    reportMarkdown.value = res.data?.report_markdown || reportMarkdown.value
+  } finally {
+    busy.value = false
+  }
+}
+
+const askQuestion = async (question) => {
+  if (!question) return
+  busy.value = true
+  agentQuestion.value = question
+  try {
+    const res = await chatMultiverseReportAgent(multiverseId.value, { message: question, clustering_strategy: 'semantic', use_llm: false })
+    agentAnswer.value = res.data?.response || ''
+    comparison.value = comparison.value || { multiverse: {}, judgement: res.data?.comparison || {} }
+  } finally {
+    busy.value = false
+  }
+}
+
 const loadAll = async () => {
   await refreshStatus()
   await loadExperiment()
@@ -211,6 +299,7 @@ const loadAll = async () => {
 
 onMounted(async () => {
   await loadExperiment()
+  await loadComparison()
   pollTimer = setInterval(refreshStatus, 5000)
 })
 
@@ -275,8 +364,24 @@ dd { margin:0; font-size:13px; word-break: break-all; }
 .cluster-chip { border:1px solid rgba(141,232,255,.24); border-radius:14px; padding:10px 12px; display:flex; gap:10px; }
 .report-markdown { margin-top:18px; white-space:pre-wrap; background:#05070a; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px; color:#dbeafe; max-height:420px; overflow:auto; }
 .loading-state { padding: 80px; text-align:center; color:#96a3b8; }
+.comparison-panel, .report-agent-panel {
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(251,191,36,0.22);
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 18px 45px rgba(0,0,0,.22);
+}
+.comparison-grid { display:grid; grid-template-columns: repeat(4, minmax(140px, 1fr)); gap:14px; margin-top:16px; }
+.pass-text { color:#86efac; }
+.warn-text { color:#fde68a; }
+.suggested-questions { display:flex; gap:10px; flex-wrap:wrap; margin:16px 0; }
+.ghost-btn.small { padding:8px 12px; font-size:12px; }
+.agent-input-row { display:flex; gap:10px; }
+.agent-input-row input { flex:1; border-radius:999px; border:1px solid rgba(141,232,255,.3); background:#05070a; color:#f4f7fb; padding:12px 14px; }
+.agent-answer { margin-top:14px; white-space:pre-wrap; background:#05070a; border:1px solid rgba(255,255,255,.08); border-radius:14px; padding:16px; color:#dbeafe; }
+
 @media (max-width: 760px) {
   .mv-header, .control-panel, .report-header { flex-direction: column; align-items: flex-start; }
-  .summary-grid, .aggregate-grid { grid-template-columns: 1fr 1fr; }
+  .summary-grid, .aggregate-grid, .comparison-grid { grid-template-columns: 1fr 1fr; }
 }
 </style>

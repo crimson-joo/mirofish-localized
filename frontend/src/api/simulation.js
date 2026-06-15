@@ -223,3 +223,11 @@ export const getMultiverseReport = (multiverseId, params = {}) => {
   return service.get(`/api/simulation/multiverse/${multiverseId}/report`, { params })
 }
 
+
+export const compareMultiverseWithSingle = (multiverseId, data = {}) => {
+  return service.post(`/api/simulation/multiverse/${multiverseId}/compare-single`, data)
+}
+
+export const chatMultiverseReportAgent = (multiverseId, data = {}) => {
+  return service.post(`/api/simulation/multiverse/${multiverseId}/report-agent-chat`, data)
+}
