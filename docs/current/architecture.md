@@ -52,6 +52,9 @@ MultiverseManager
 - `prepare_experiment()`는 각 child simulation에 scenario/persona overlay를 주입해 준비합니다.
 - `start_experiment()`는 `max_parallel` 슬롯만 실행하고 나머지 child를 `queued` 상태로 남깁니다.
 - `aggregate_experiment()`는 status frequency, sensitivity axes, outcome clusters, ensemble report markdown을 생성합니다.
-- API 확장: `/multiverse/<mv_id>/prepare`, `/start`, `/status`, `/report`.
+- API 확장: `/multiverse/<mv_id>/prepare`, `/prepare/status`, `/start`, `/advance`, `/status`, `/report`, `/report-agent-context`.
 - UI 확장: `/multiverse/:multiverseId` dashboard에서 universe list/status/progress/aggregate/report를 표시합니다.
+- 고도화 계층: `prepare_experiment_async()`는 TaskManager 기반 prepare 진행률을 제공하고, `auto_advance_queue()`는 열린 run slot에 queued/ready child를 자동 투입합니다.
+- `aggregate_experiment(clustering_strategy="semantic")`는 deterministic token-similarity 기반 semantic cluster MVP와 evidence snippet을 반환합니다. API shape는 향후 embedding/LLM clustering으로 교체 가능하게 유지합니다.
+- `report_agent_context`는 child simulation 요약, outcome clusters, sensitivity axes, probability caveat, suggested questions를 Report Agent Q&A가 읽을 수 있는 형태로 묶습니다.
 - 기존 prepare/start/report 경로는 child `simulation_id` 단위로 그대로 재사용하고, 상위 aggregate/report 확장은 `mv_*` 단위에서 수행합니다.

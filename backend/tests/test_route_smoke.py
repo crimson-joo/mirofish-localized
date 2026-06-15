@@ -170,9 +170,17 @@ class RouteSmokeTest(unittest.TestCase):
             prepare_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/prepare", json={
                 "document_text": "source",
                 "use_llm_for_profiles": False,
+                "async": True,
+                "use_thread": False,
             })
         self.assertEqual(prepare_response.status_code, 200)
-        self.assertEqual(prepare_response.get_json()["data"]["prepared_count"], 3)
+        prepare_payload = prepare_response.get_json()["data"]
+        self.assertIn("task_id", prepare_payload)
+        self.assertEqual(prepare_payload["status"], "completed")
+
+        task_response = self.client.get(f"/api/simulation/multiverse/{mv_id}/prepare/status", query_string={"task_id": prepare_payload["task_id"]})
+        self.assertEqual(task_response.status_code, 200)
+        self.assertEqual(task_response.get_json()["data"]["status"], "completed")
 
         sim_manager = SimulationManager()
 
@@ -189,6 +197,11 @@ class RouteSmokeTest(unittest.TestCase):
         self.assertEqual(start_response.get_json()["data"]["started_count"], 2)
         self.assertEqual(start_response.get_json()["data"]["queued_count"], 1)
 
+        with patch("app.services.multiverse_manager.SimulationRunner.start_simulation", side_effect=fake_start):
+            advance_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/advance", json={"platform": "parallel"})
+        self.assertEqual(advance_response.status_code, 200)
+        self.assertEqual(advance_response.get_json()["data"]["scheduler"]["mode"], "auto_advance")
+
         status_response = self.client.get(f"/api/simulation/multiverse/{mv_id}/status")
         self.assertEqual(status_response.status_code, 200)
         self.assertTrue(status_response.get_json()["success"])
@@ -200,11 +213,18 @@ class RouteSmokeTest(unittest.TestCase):
             state.config_reasoning = "은행권 방어 행동 강화"
             sim_manager._save_simulation_state(state)
 
-        report_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/report")
+        report_response = self.client.post(f"/api/simulation/multiverse/{mv_id}/report", json={"clustering_strategy": "semantic"})
         self.assertEqual(report_response.status_code, 200)
-        report = report_response.get_json()["data"]["report_markdown"]
+        report_payload = report_response.get_json()["data"]
+        report = report_payload["report_markdown"]
         self.assertIn("ensemble_frequency", report)
         self.assertIn("실제 확률", report)
+        self.assertEqual(report_payload["aggregate"]["clustering_strategy"], "semantic")
+        self.assertIn("report_agent_context", report_payload["aggregate"])
+
+        context_response = self.client.get(f"/api/simulation/multiverse/{mv_id}/report-agent-context")
+        self.assertEqual(context_response.status_code, 200)
+        self.assertEqual(context_response.get_json()["data"]["context_type"], "multiverse_ensemble")
 
 
 if __name__ == "__main__":
