@@ -24,12 +24,14 @@ Embedding: OpenAI-compatible local embedding endpoint
 ## 실행
 
 ```bash
-cd /Users/crimson/Projects/mirofish-localized
+cd /Volumes/ExternalSSD/Workspace/Projects/mirofish-localized
 cp .env.example .env
-# 필요 시 .env에서 LLM/embedding endpoint 조정
+# 필요 시 .env에서 LLM/embedding/multimodal endpoint 조정
 # Graphiti extraction만 별도 모델로 강화하려면 GRAPH_MEMORY_MODEL_NAME / GRAPH_MEMORY_SMALL_MODEL_NAME 조정
 docker compose up -d --build
 ```
+
+주의: `~/Projects/mirofish-localized`는 현재 이 Mac에서 외장 SSD 작업 경로로 이어지는 호환 경로입니다. 문서의 기준 경로는 `/Volumes/ExternalSSD/Workspace/Projects/mirofish-localized`입니다.
 
 기본 `docker compose up`은 MiroFish + Graphiti + Neo4j를 함께 올립니다. 즉 Graphiti를 따로 호스트에 띄워둘 필요가 없습니다.
 

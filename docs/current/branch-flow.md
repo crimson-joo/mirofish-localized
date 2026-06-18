@@ -131,4 +131,14 @@ Webhook은 GitHub Actions secret이 설정되어 있을 때만 호출됩니다. 
 /Volumes/ExternalSSD/Workspace/Projects/mirofish-localized
 ```
 
-README나 quickstart에 과거 `~/Projects` 경로가 남아 있으면 외장 SSD 기준으로 업데이트합니다.
+- README나 quickstart에 과거 `~/Projects` 경로가 남아 있으면 외장 SSD 기준으로 업데이트합니다.
+
+## 문서 게이트
+
+기능/UX/runner 변경이 있는 feature는 코드 검증만으로 완료 처리하지 않습니다.
+
+- README와 `docs/current/*`가 현재 구현 상태와 일치해야 합니다.
+- 사용자-facing 문서는 한국어-first로 작성합니다.
+- 원본 MiroFish 스크린샷을 현재 localized evidence로 재사용하지 않습니다.
+- UI 변경 시 실제 screenshot/canary artifact를 남깁니다.
+- 문서 에이전트 또는 Librarian closeout은 `.hermes/runs/*`의 raw log가 아니라 canonical docs에 남길 결론/사용법/한계만 반영합니다.

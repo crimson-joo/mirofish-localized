@@ -82,6 +82,35 @@ class MultiverseManagerTest(unittest.TestCase):
         self.assertEqual(len(aggregate["sensitivity_axes"]), 3)
         self.assertIn("common_findings", aggregate)
 
+    def test_semantic_clusters_use_human_readable_market_labels(self):
+        from app.services.multiverse_manager import MultiverseManager
+
+        manager = MultiverseManager()
+        child_summaries = [
+            {
+                "universe_id": "u1",
+                "status": "completed",
+                "config_reasoning": "규제 명확성이 빨리 확보되면서 토큰화 국채와 머니마켓펀드가 기관 담보 시장의 기본 레일로 확산된다.",
+            },
+            {
+                "universe_id": "u2",
+                "status": "completed",
+                "config_reasoning": "DeFi 수익률 하락과 스테이블코인 결제 확산이 겹치며 RWA 담보가 온체인 신용시장의 핵심 재료가 된다.",
+            },
+            {
+                "universe_id": "u3",
+                "status": "completed",
+                "config_reasoning": "규제기관이 토큰화 증권을 강하게 제한하면서 허가형 네트워크 안의 파일럿만 남고 퍼블릭체인 RWA는 성장 속도가 느려진다.",
+            },
+        ]
+
+        labels = {cluster["label"] for cluster in manager._build_semantic_outcome_clusters(child_summaries)}
+
+        self.assertIn("규제 명확성 확산형", labels)
+        self.assertIn("DeFi 담보 확산형", labels)
+        self.assertIn("규제 제한 지연형", labels)
+        self.assertNotIn("Semantic outcome cluster", labels)
+
 
 if __name__ == "__main__":
     unittest.main()

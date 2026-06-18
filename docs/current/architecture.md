@@ -58,3 +58,41 @@ MultiverseManager
 - `aggregate_experiment(clustering_strategy="semantic")`는 deterministic token-similarity 기반 semantic cluster MVP와 evidence snippet을 반환합니다. API shape는 향후 embedding/LLM clustering으로 교체 가능하게 유지합니다.
 - `report_agent_context`는 child simulation 요약, outcome clusters, sensitivity axes, probability caveat, suggested questions를 Report Agent Q&A가 읽을 수 있는 형태로 묶습니다.
 - 기존 prepare/start/report 경로는 child `simulation_id` 단위로 그대로 재사용하고, 상위 aggregate/report 확장은 `mv_*` 단위에서 수행합니다.
+
+## Live local-runtime canary / RWA evaluation
+
+`./scripts/multiverse-long-run-eval.py`는 bounded-real backend 평가와 live-local-runtime canary를 분리합니다.
+
+```bash
+python scripts/multiverse-long-run-eval.py --mode bounded --topic "RWA 실물자산 토큰화 시장 반응"
+python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산 토큰화 시장 반응"
+```
+
+- `bounded`: 실제 backend manager/API path를 사용하되 deterministic completed child state로 빠르게 비교합니다.
+- `live`: 로컬 LLM/embedding/Graphiti endpoint preflight를 먼저 수행하고, 실패하면 fallback으로 숨기지 않고 `BLOCKED`로 종료합니다.
+- RWA/실물자산/토큰화 topic은 시장형 universe summaries와 human-readable cluster label을 사용합니다.
+- cluster label은 `Semantic outcome cluster` 같은 내부 개발자 문구가 아니라 `규제 명확성 확산형`, `DeFi 담보 확산형`, `규제 제한 지연형`처럼 사용자-facing label을 우선합니다.
+
+## BettaFish bridge runner
+
+`./scripts/bettafish-single-e2e-runner.py`는 BettaFish 최종 Markdown 보고서를 MiroFish seed로 투입하는 resume-safe runner입니다.
+
+```text
+BettaFish final_report.md
+→ MiroFish project/upload
+→ graph build
+→ simulation prepare/start
+→ action 확인
+→ report generate
+→ Report Agent QA
+```
+
+저장 state:
+
+```text
+project_id, graph_task_id, graph_id, simulation_id,
+prepare_task_id, report_task_id, report_id,
+attempts, stage, final_summary
+```
+
+긴 E2E가 SIGTERM/timeout으로 끊겨도 다음 실행에서 state를 읽고 이어가며, 실패 attempt와 성공 resume을 하나의 summary로 구분합니다.
