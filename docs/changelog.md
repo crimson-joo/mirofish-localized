@@ -1,5 +1,14 @@
 # Changelog — MiroFish-localized
 
+## 2026-06-18
+
+- README를 원본 MiroFish 소개문 중심에서 MiroFish-localized의 현재 상태를 설명하는 한국어 진입 문서로 교체했습니다.
+- 현재 한국어 홈/업로드 화면을 직접 캡처한 `static/image/Screenshot/localized-home-ko.png`를 README 대표 screenshot으로 추가했습니다.
+- `docs/README.md`, `docs/current/product.md`, `docs/current/design.md`를 추가해 문서 에이전트/QA/Release가 따라야 할 canonical docs 기준을 명시했습니다.
+- Multiverse live-local-runtime canary와 RWA topic evaluation, human-readable outcome cluster label 기준을 architecture/QA 문서에 반영했습니다.
+- BettaFish→MiroFish resume-safe bridge runner 사용법과 SIGTERM/timeout resume 표현 기준을 README/architecture 문서에 반영했습니다.
+- 로컬 quickstart 경로를 외장 SSD 기준 `/Volumes/ExternalSSD/Workspace/Projects/mirofish-localized`로 정정했습니다.
+
 ## 2026-06-09
 
 - Graphiti/Neo4j를 기본 그래프 메모리 provider로 승격했습니다.

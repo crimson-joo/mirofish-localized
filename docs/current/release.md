@@ -9,6 +9,7 @@
 3. Graphiti native extraction hardening gate
 4. GitHub Pages 정적 checkpoint
 5. PR → main → Pages deploy → canary 확인 루프
+6. README/docs/current가 현재 localized 상태와 실제 screenshot을 반영하는 문서 gate
 
 ## 브랜치 정책
 
@@ -36,6 +37,8 @@
    - local smoke
    - native-only Graphiti smoke
    - 브라우저 화면 확인 및 스크린샷
+   - README/docs/current/changelog 최신화
+   - 원본 스크린샷을 current localized evidence처럼 재사용하지 않았는지 확인
 
 2. PR merge 후
    - GitHub Pages workflow success

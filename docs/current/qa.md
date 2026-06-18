@@ -12,6 +12,9 @@
 4. 세션/그래프별 group_id 삭제 시 Graphiti group cleanup과 projection cache cleanup이 함께 수행된다.
 5. GitHub Pages는 전체 앱 배포가 아니라 정적 체크포인트/문서 페이지임을 명확히 보여준다.
 6. Multiverse Simulation MVP는 하나의 graph/topic에서 여러 universe child simulation을 만들고, status frequency를 실제 확률이 아닌 `ensemble_frequency`로 집계한다.
+7. Multiverse outcome cluster label은 `Semantic outcome cluster` 같은 내부 문구가 아니라 사용자가 읽을 수 있는 한국어 label로 표시된다.
+8. BettaFish→MiroFish bridge runner는 SIGTERM/timeout 이후 resume state로 이어서 실행 가능해야 한다.
+9. README와 current docs는 현재 localized 상태, 한국어 화면, 실제 검증 범위를 반영해야 한다.
 
 ## 로컬 QA 기준
 
@@ -25,6 +28,9 @@
 - Multiverse focused tests: `cd backend && uv run pytest tests/test_multiverse_manager.py tests/test_multiverse_orchestration.py tests/test_multiverse_advanced_orchestration.py tests/test_route_smoke.py -q` PASS
 - Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/prepare`, `/prepare/status`, `/start`, `/advance`, `/status`, `/aggregate`, `/report`, `/report-agent-context`가 실험/child simulation/queue/aggregate/report-agent context shape을 반환해야 합니다.
 - Multiverse UI smoke: Step1의 “멀티버스 시뮬레이션” 버튼이 `/multiverse/:multiverseId` dashboard로 이동하고, universe card/status/async prepare task/progress/semantic aggregate/report/disclaimer가 보여야 합니다.
+- Multiverse label smoke: `cd backend && uv run pytest tests/test_multiverse_manager.py -q`에서 human-readable market label 테스트가 PASS해야 하며, 결과 label에 `Semantic outcome cluster`가 남아 있으면 실패입니다.
+- Live local-runtime canary: `python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산 토큰화 시장 반응"`은 LLM/embedding/Graphiti endpoint preflight를 통과하거나, 실패 시 `BLOCKED`로 fail-closed해야 합니다.
+- Documentation QA: `README.md`, `docs/README.md`, `docs/current/product.md`, `docs/current/design.md`가 현재 localized 상태와 한국어 screenshot을 가리켜야 합니다.
 
 ## Pages Canary 기준
 
