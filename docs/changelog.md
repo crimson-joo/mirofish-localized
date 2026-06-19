@@ -1,5 +1,12 @@
 # Changelog — MiroFish-localized
 
+## 2026-06-19
+
+- 반복 실행 안정화를 위해 Graphiti duplicate edge warning을 native ingest 실패와 분리해 `native_warning_state=warning` 및 `warnings[]`로 기록하도록 했습니다.
+- OASIS bounded loop가 완료된 뒤 command-wait 상태에서 stop되어도 durable `actions.jsonl`의 `simulation_end` 근거로 child/multiverse 상태를 `completed`로 승격하도록 했습니다.
+- 리포트 생성 watcher/세션이 끊긴 경우에도 같은 `report_id`의 non-empty `full_report.md`를 기준으로 completed 상태를 복구하는 `ReportManager.reconcile_report_completion()`을 추가했습니다.
+- 위 세 가지 반복 사이클 hardening에 대한 regression test를 `backend/tests/test_runtime_cycle_hardening.py`에 추가했습니다.
+
 ## 2026-06-18
 
 - README를 원본 MiroFish 소개문 중심에서 MiroFish-localized의 현재 상태를 설명하는 한국어 진입 문서로 교체했습니다.

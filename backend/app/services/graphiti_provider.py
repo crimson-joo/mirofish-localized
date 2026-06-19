@@ -78,6 +78,20 @@ def _record_graphiti_event(
             status_obj["native_ingest_state"] = ingest_state
         else:
             status_obj["native_ingest_state"] = "pass" if native_success else "failed"
+        warnings = (details or {}).get("graphiti_warnings") or []
+        if warnings:
+            existing_warnings = status_obj.setdefault("warnings", [])
+            for warning in warnings:
+                record = {
+                    "at": event["at"],
+                    "operation": operation,
+                    **warning,
+                }
+                existing_warnings.append(record)
+                graph.setdefault("graphiti_warnings", []).append(record)
+            status_obj["native_warning_state"] = "warning"
+        else:
+            status_obj.setdefault("native_warning_state", "none")
     if operation == "search":
         if "failed" in status:
             status_obj["native_search_state"] = "failed"
@@ -126,6 +140,43 @@ def _ingest_state(native_count: int, repaired_count: int, failed_count: int) -> 
     if native_count > 0:
         return "pass"
     return "unknown"
+
+
+def _extract_graphiti_warnings(response: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Normalize non-blocking Graphiti warnings into durable status records.
+
+    Graphiti can accept /messages successfully while logging validation warnings,
+    especially duplicate edge retries. Keep those separate from native ingest
+    failure so future canaries can distinguish PASS-with-warning from FAILED.
+    """
+    raw_parts: List[str] = []
+    for key in ("warning", "warnings", "message", "detail"):
+        value = response.get(key)
+        if isinstance(value, list):
+            raw_parts.extend(str(item) for item in value)
+        elif value:
+            raw_parts.append(str(value))
+
+    warnings: List[Dict[str, Any]] = []
+    seen: set[Tuple[str, str]] = set()
+    for raw in raw_parts:
+        lowered = raw.lower()
+        category: Optional[str] = None
+        if "edgeduplicate" in lowered or "duplicate edge" in lowered:
+            category = "duplicate_edge"
+        elif "warning" in lowered:
+            category = "graphiti_warning"
+        if not category:
+            continue
+        key = (category, raw)
+        if key in seen:
+            continue
+        seen.add(key)
+        warnings.append({
+            "category": category,
+            "message": raw,
+        })
+    return warnings
 
 
 class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
@@ -207,6 +258,11 @@ class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
                     if failed_count > 0 or response.get("success") is False:
                         raise RuntimeError(response.get("message") or "Graphiti patched /messages reported failure")
                 ingest_state = _ingest_state(native_total, repaired_total, failed_total)
+                graphiti_warnings = [
+                    warning
+                    for response in responses
+                    for warning in _extract_graphiti_warnings(response)
+                ]
                 _record_graphiti_event(
                     graph_id,
                     "messages",
@@ -218,7 +274,7 @@ class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
                         "repaired_count": repaired_total,
                         "failed_count": failed_total,
                         "native_ingest_state": ingest_state,
-                        "batch_size": 1,
+                        "graphiti_warnings": graphiti_warnings,
                         "responses": responses[-3:],
                     },
                 )
