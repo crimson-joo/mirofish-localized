@@ -101,11 +101,24 @@ def _normalize_structured_payload(payload: Any, response_model: type[Any], entit
         for idx, row in enumerate(rows if isinstance(rows, list) else []):
             if not isinstance(row, dict):
                 continue
+            entity_id = _coerce_int(row.get('id'), idx)
+            duplicate_idx = _coerce_int(row.get('duplicate_idx') if row.get('duplicate_idx') is not None else row.get('duplicate_id'), -1)
+            if duplicate_idx == entity_id or duplicate_idx < 0:
+                duplicate_idx = -1
+            additional_duplicates = []
+            seen_duplicates = set()
+            raw_additional_duplicates = row.get('additional_duplicates')
+            for duplicate in raw_additional_duplicates if isinstance(raw_additional_duplicates, list) else []:
+                duplicate_id = _coerce_int(duplicate, -1)
+                if duplicate_id < 0 or duplicate_id == entity_id or duplicate_id in seen_duplicates:
+                    continue
+                seen_duplicates.add(duplicate_id)
+                additional_duplicates.append(duplicate_id)
             normalized.append({
-                'id': _coerce_int(row.get('id'), idx),
-                'duplicate_idx': _coerce_int(row.get('duplicate_idx') if row.get('duplicate_idx') is not None else row.get('duplicate_id'), -1),
+                'id': entity_id,
+                'duplicate_idx': duplicate_idx,
                 'name': str(row.get('name') or row.get('entity') or f'entity_{idx}'),
-                'additional_duplicates': row.get('additional_duplicates') if isinstance(row.get('additional_duplicates'), list) else [],
+                'additional_duplicates': additional_duplicates,
             })
         return {'entity_resolutions': normalized}
 
@@ -114,23 +127,33 @@ def _normalize_structured_payload(payload: Any, response_model: type[Any], entit
         if isinstance(payload, dict):
             rows = payload.get('edges') or payload.get('facts') or payload.get('relations') or payload.get('_list') or []
         normalized = []
+        seen_edges = set()
         for row in rows if isinstance(rows, list) else []:
             if not isinstance(row, dict):
                 continue
             source_id = row.get('source_entity_id') if row.get('source_entity_id') is not None else row.get('subject_id')
             target_id = row.get('target_entity_id') if row.get('target_entity_id') is not None else row.get('object_id')
+            source_entity_id = _coerce_int(source_id, -1)
+            target_entity_id = _coerce_int(target_id, -1)
+            if source_entity_id < 0 or target_entity_id < 0 or source_entity_id == target_entity_id:
+                continue
             relation = row.get('relation_type') or row.get('predicate') or row.get('relation') or row.get('type') or 'RELATED_TO'
             relation = re.sub(r'[^A-Za-z0-9]+', '_', str(relation)).strip('_').upper() or 'RELATED_TO'
             fact = row.get('fact') or row.get('description') or row.get('statement')
             if not fact:
-                source_name = (entity_names or {}).get(_coerce_int(source_id, 0), f'entity {source_id}')
-                target_name = (entity_names or {}).get(_coerce_int(target_id, 0), f'entity {target_id}')
+                source_name = (entity_names or {}).get(source_entity_id, f'entity {source_id}')
+                target_name = (entity_names or {}).get(target_entity_id, f'entity {target_id}')
                 fact = f"{source_name} {relation.replace('_', ' ').lower()} {target_name}"
+            normalized_fact = re.sub(r'\s+', ' ', str(fact)).strip()
+            canonical_key = (source_entity_id, target_entity_id, relation, normalized_fact.casefold())
+            if canonical_key in seen_edges:
+                continue
+            seen_edges.add(canonical_key)
             normalized.append({
                 'relation_type': relation,
-                'source_entity_id': _coerce_int(source_id, 0),
-                'target_entity_id': _coerce_int(target_id, 0),
-                'fact': str(fact),
+                'source_entity_id': source_entity_id,
+                'target_entity_id': target_entity_id,
+                'fact': normalized_fact,
                 'valid_at': row.get('valid_at'),
                 'invalid_at': row.get('invalid_at'),
             })

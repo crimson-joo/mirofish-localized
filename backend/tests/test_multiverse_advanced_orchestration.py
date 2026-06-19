@@ -12,14 +12,17 @@ class MultiverseAdvancedOrchestrationTest(unittest.TestCase):
         from app.models.project import ProjectManager
         from app.models.task import TaskManager
         from app.services.simulation_manager import SimulationManager
+        from app.services.simulation_runner import SimulationRunner
         from app.services.multiverse_manager import MultiverseManager
 
         Config.UPLOAD_FOLDER = self.tmpdir.name
         Config.OASIS_SIMULATION_DATA_DIR = os.path.join(self.tmpdir.name, "simulations")
         ProjectManager.PROJECTS_DIR = os.path.join(self.tmpdir.name, "projects")
         SimulationManager.SIMULATION_DATA_DIR = Config.OASIS_SIMULATION_DATA_DIR
+        SimulationRunner.RUN_STATE_DIR = Config.OASIS_SIMULATION_DATA_DIR
         MultiverseManager.MULTIVERSE_DATA_DIR = os.path.join(self.tmpdir.name, "multiverses")
         TaskManager()._tasks.clear()
+        SimulationRunner._run_states.clear()
 
     def tearDown(self):
         self.tmpdir.cleanup()
@@ -97,6 +100,65 @@ class MultiverseAdvancedOrchestrationTest(unittest.TestCase):
         self.assertEqual(task.progress, 100)
         self.assertEqual(task.result["prepared_count"], 2)
         self.assertEqual(task.metadata["multiverse_id"], experiment.multiverse_id)
+
+
+    def test_prepare_async_reuses_active_task_for_same_multiverse(self):
+        from app.models.task import TaskManager, TaskStatus
+        from app.services.multiverse_manager import MultiverseManager
+
+        manager = MultiverseManager()
+        experiment = manager.create_experiment(
+            project_id="proj_demo",
+            graph_id="graph_demo",
+            base_requirement="AI 규제 이슈",
+            universe_count=2,
+        )
+
+        task_id = TaskManager().create_task(
+            "multiverse_prepare",
+            metadata={"multiverse_id": experiment.multiverse_id, "project_id": experiment.project_id},
+        )
+        TaskManager().update_task(task_id, status=TaskStatus.PROCESSING, progress=10)
+
+        result = manager.prepare_experiment_async(experiment.multiverse_id, document_text="source", use_thread=False)
+
+        self.assertEqual(result["task_id"], task_id)
+        self.assertTrue(result["deduped"])
+        matching = [
+            task for task in TaskManager().list_tasks("multiverse_prepare")
+            if task["metadata"].get("multiverse_id") == experiment.multiverse_id
+        ]
+        self.assertEqual(len(matching), 1)
+
+    def test_start_failure_marks_child_simulation_failed_and_avoids_retry_storm(self):
+        from app.services.multiverse_manager import MultiverseManager
+        from app.services.simulation_manager import SimulationManager, SimulationStatus
+
+        manager = MultiverseManager()
+        experiment = manager.create_experiment(
+            project_id="proj_demo",
+            graph_id="graph_demo",
+            base_requirement="AI 규제 이슈",
+            universe_count=1,
+            max_parallel=1,
+        )
+        child = experiment.children[0]
+        sim_manager = SimulationManager()
+        state = sim_manager.get_simulation(child.simulation_id)
+        assert state is not None
+        state.status = SimulationStatus.READY
+        sim_manager._save_simulation_state(state)
+
+        with patch("app.services.multiverse_manager.SimulationRunner.start_simulation", side_effect=RuntimeError("graph memory unavailable")) as start:
+            first = manager.start_experiment(experiment.multiverse_id, platform="parallel")
+            second = manager.auto_advance_queue(experiment.multiverse_id, platform="parallel")
+
+        updated_state = SimulationManager().get_simulation(child.simulation_id)
+        assert updated_state is not None
+        self.assertEqual(first["failed_count"], 1)
+        self.assertEqual(updated_state.status, SimulationStatus.FAILED)
+        self.assertEqual(second["started_count"], 0)
+        self.assertEqual(start.call_count, 1)
 
     def test_semantic_clusters_group_similar_child_outcomes_with_evidence(self):
         from app.services.multiverse_manager import MultiverseManager

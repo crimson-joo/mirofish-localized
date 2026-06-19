@@ -17,6 +17,9 @@
 9. README와 current docs는 현재 localized 상태, 한국어 화면, 실제 검증 범위를 반영해야 한다.
 10. 반복 사이클 안정화 기준: Graphiti duplicate edge 경고는 실패와 분리되어 `native_warning_state=warning`으로 기록되어야 하며, OASIS command-wait 후 stop된 run도 durable `actions.jsonl`의 양 플랫폼 `simulation_end`가 있으면 completed로 승격되어야 한다.
 11. 리포트 생성 watcher가 끊겨도 `full_report.md`가 완성되어 있으면 같은 `report_id`를 재실행/조회할 때 completed 상태로 복구되어야 한다.
+12. Action memory canary는 simulation action이 Graphiti `/messages`에 native ingest되고, Graphiti search/Report Agent `quick_search`에서 같은 canary evidence가 회수되는지 확인해야 한다. Native action ingest/search 실패는 projection cache나 문자열 observation으로 PASS 처리하면 안 된다.
+13. Report Agent는 한 응답에 tool call과 `Final Answer`를 동시에 내는 protocol conflict를 도구 실행 없이 재시도/실패 처리해야 한다.
+14. Long-run scheduler는 같은 multiverse prepare task를 중복 등록하지 않고, orphan running/failed child를 무한 재시도하지 않아야 한다.
 
 ## 로컬 QA 기준
 
@@ -27,7 +30,7 @@
 - Console: blocker JS error 없음
 - Smoke: `./scripts/local-smoke.sh` PASS
 - Native extraction gate: `GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py` PASS 또는 명확한 BLOCKED 사유
-- Multiverse focused tests: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager tests.test_route_smoke tests.test_runtime_cycle_hardening -v` PASS
+- Multiverse/runtime focused tests: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager tests.test_route_smoke tests.test_runtime_cycle_hardening tests.test_multiverse_advanced_orchestration tests.test_graphiti_provider tests.test_report_agent_protocol tests.test_graphiti_structured_normalization -v` PASS
 - Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/prepare`, `/prepare/status`, `/start`, `/advance`, `/status`, `/aggregate`, `/report`, `/report-agent-context`가 실험/child simulation/queue/aggregate/report-agent context shape을 반환해야 합니다.
 - Multiverse UI smoke: Step1의 “멀티버스 시뮬레이션” 버튼이 `/multiverse/:multiverseId` dashboard로 이동하고, universe card/status/async prepare task/progress/semantic aggregate/report/disclaimer가 보여야 합니다.
 - Multiverse label smoke: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager.MultiverseManagerTest.test_semantic_clusters_use_human_readable_market_labels -v`에서 human-readable market label 테스트가 PASS해야 하며, 결과 label에 `Semantic outcome cluster`가 남아 있으면 실패입니다.

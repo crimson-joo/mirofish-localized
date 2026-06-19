@@ -54,7 +54,7 @@ MultiverseManager
 - `aggregate_experiment()`는 status frequency, sensitivity axes, outcome clusters, ensemble report markdown을 생성합니다.
 - API 확장: `/multiverse/<mv_id>/prepare`, `/prepare/status`, `/start`, `/advance`, `/status`, `/report`, `/report-agent-context`.
 - UI 확장: `/multiverse/:multiverseId` dashboard에서 universe list/status/progress/aggregate/report를 표시합니다.
-- 고도화 계층: `prepare_experiment_async()`는 TaskManager 기반 prepare 진행률을 제공하고, `auto_advance_queue()`는 열린 run slot에 queued/ready child를 자동 투입합니다.
+- 고도화 계층: `prepare_experiment_async()`는 TaskManager 기반 prepare 진행률을 제공하고, 같은 `multiverse_id`의 active prepare task는 중복 생성하지 않고 재사용합니다. `auto_advance_queue()`는 열린 run slot에 queued/ready child를 자동 투입합니다.
 - `aggregate_experiment(clustering_strategy="semantic")`는 deterministic token-similarity 기반 semantic cluster MVP와 evidence snippet을 반환합니다. API shape는 향후 embedding/LLM clustering으로 교체 가능하게 유지합니다.
 - `report_agent_context`는 child simulation 요약, outcome clusters, sensitivity axes, probability caveat, suggested questions를 Report Agent Q&A가 읽을 수 있는 형태로 묶습니다.
 - 기존 prepare/start/report 경로는 child `simulation_id` 단위로 그대로 재사용하고, 상위 aggregate/report 확장은 `mv_*` 단위에서 수행합니다.
@@ -81,12 +81,29 @@ python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산
 Graphiti /messages accepted + duplicate edge warning
 → native_ingest_state=pass 또는 repaired 유지
 → native_warning_state=warning 및 warnings[]에 duplicate_edge 기록
+→ 동일 warning은 batch/status 단위에서 중복 누적하지 않음
+```
+
+```text
+Simulation action memory
+→ actions.jsonl의 agent action을 Graphiti /messages로 먼저 native ingest
+→ 성공한 action만 projection cache/actions.jsonl read-model에 기록
+→ native action ingest 실패는 run failure로 드러내고 리포트 evidence로 쓰지 않음
+→ native_action_ingest_state=pass/repaired/failed 로 별도 기록
+```
+
+```text
+Report Agent evidence protocol
+→ tool call 단계와 Final Answer 단계는 한 응답에서 섞을 수 없음
+→ tool_call + Final Answer 충돌 응답은 폐기/재시도 후 fail-closed
+→ Graphiti search tool 실패는 문자열 evidence로 삼키지 않고 실패로 전파
 ```
 
 ```text
 OASIS bounded loop 완료
 → twitter/actions.jsonl + reddit/actions.jsonl 의 simulation_end 확인
 → command-wait 상태에서 stop되어도 semantic completion은 completed로 승격
+→ unknown/orphan persisted running 상태는 live process가 없으면 failed로 정규화해 queue slot을 영구 점유하지 않음
 ```
 
 ```text

@@ -481,6 +481,20 @@ class MultiverseManager:
             raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
 
         task_manager = TaskManager()
+        active_statuses = {TaskStatus.PENDING.value, TaskStatus.PROCESSING.value}
+        for task in task_manager.list_tasks("multiverse_prepare"):
+            if (
+                task.get("metadata", {}).get("multiverse_id") == multiverse_id
+                and task.get("status") in active_statuses
+            ):
+                return {
+                    "multiverse_id": multiverse_id,
+                    "task_id": task["task_id"],
+                    "status": task.get("status", "queued"),
+                    "deduped": True,
+                    "message": "이미 등록된 멀티버스 prepare task를 재사용합니다.",
+                }
+
         task_id = task_manager.create_task(
             task_type="multiverse_prepare",
             metadata={
@@ -594,6 +608,10 @@ class MultiverseManager:
                 started.append({**child.to_dict(), "run_state": run_state.to_dict()})
             except Exception as e:
                 child.status = "failed"
+                if state:
+                    state.status = SimulationStatus.FAILED
+                    state.error = str(e)
+                    simulation_manager._save_simulation_state(state)
                 failed.append({"universe_id": child.universe_id, "simulation_id": child.simulation_id, "error": str(e)})
 
         experiment.status = MultiverseStatus.RUNNING if (started or running_now > 0) else MultiverseStatus.PARTIAL
@@ -625,7 +643,7 @@ class MultiverseManager:
         return result
 
     def refresh_status(self, multiverse_id: str) -> Dict[str, Any]:
-        """Refresh child statuses from simulation/run state and schedule more queued runs if slots are open."""
+        """Refresh child statuses from simulation/run state without starting queued runs."""
         experiment = self.get_experiment(multiverse_id)
         if not experiment:
             raise ValueError(f"Multiverse experiment not found: {multiverse_id}")
