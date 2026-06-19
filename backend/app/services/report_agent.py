@@ -1562,6 +1562,10 @@ class ReportAgent:
         # 如果没有传入 report_id，则自动生成
         if not report_id:
             report_id = f"report_{uuid.uuid4().hex[:12]}"
+        else:
+            recovered_report = ReportManager.reconcile_report_completion(report_id)
+            if recovered_report and recovered_report.status == ReportStatus.COMPLETED:
+                return recovered_report
         start_time = datetime.now()
         
         report = Report(
@@ -2446,6 +2450,45 @@ class ReportManager:
         logger.info(t('report.reportSaved', reportId=report.report_id))
     
     @classmethod
+    def reconcile_report_completion(cls, report_id: str) -> Optional[Report]:
+        """Recover a completed report from durable files after watcher timeout.
+
+        Long report generation can outlive the polling client. If full_report.md
+        exists and has content, treat it as the source of truth and persist the
+        report/progress status as completed instead of requiring a fresh run.
+        """
+        report = cls.get_report(report_id)
+        if not report:
+            return None
+        full_report_path = cls._get_report_markdown_path(report_id)
+        if report.status == ReportStatus.COMPLETED:
+            return report
+        if not os.path.exists(full_report_path):
+            return report
+        try:
+            with open(full_report_path, 'r', encoding='utf-8') as f:
+                markdown_content = f.read()
+        except Exception:
+            return report
+        if not markdown_content.strip():
+            return report
+
+        report.markdown_content = markdown_content
+        report.status = ReportStatus.COMPLETED
+        if not report.completed_at:
+            report.completed_at = datetime.now().isoformat()
+        report.error = None
+        cls.save_report(report)
+        cls.update_progress(
+            report_id,
+            "completed",
+            100,
+            "Report completion recovered from durable full_report.md",
+            completed_sections=[],
+        )
+        return report
+
+    @classmethod
     def get_report(cls, report_id: str) -> Optional[Report]:
         """获取报告"""
         path = cls._get_report_path(report_id)
@@ -2508,12 +2551,16 @@ class ReportManager:
             # 新格式：文件夹
             if os.path.isdir(item_path):
                 report = cls.get_report(item)
+                if report and report.status != ReportStatus.COMPLETED:
+                    report = cls.reconcile_report_completion(report.report_id) or report
                 if report and report.simulation_id == simulation_id:
                     return report
             # 兼容旧格式：JSON文件
             elif item.endswith('.json'):
                 report_id = item[:-5]
                 report = cls.get_report(report_id)
+                if report and report.status != ReportStatus.COMPLETED:
+                    report = cls.reconcile_report_completion(report.report_id) or report
                 if report and report.simulation_id == simulation_id:
                     return report
         

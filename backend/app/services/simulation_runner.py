@@ -720,6 +720,100 @@ class SimulationRunner:
         
         # 至少有一个平台被启用且已完成
         return twitter_enabled or reddit_enabled
+
+    @classmethod
+    def _scan_action_log_summary(cls, log_path: str) -> Dict[str, Any]:
+        """Scan durable OASIS action logs without replaying graph-memory updates."""
+        summary: Dict[str, Any] = {
+            "exists": os.path.exists(log_path),
+            "completed": False,
+            "actions_count": 0,
+            "max_round": 0,
+            "total_rounds": 0,
+        }
+        if not summary["exists"]:
+            return summary
+        try:
+            with open(log_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    round_num = int(row.get("round") or row.get("round_num") or 0)
+                    if round_num > summary["max_round"]:
+                        summary["max_round"] = round_num
+                    if row.get("event_type") == "round_end":
+                        event_round = int(row.get("round") or 0)
+                        summary["max_round"] = max(summary["max_round"], event_round)
+                    elif row.get("event_type") == "simulation_end":
+                        summary["completed"] = True
+                        summary["total_rounds"] = int(row.get("total_rounds") or summary["total_rounds"] or 0)
+                        total_actions = row.get("total_actions")
+                        if isinstance(total_actions, int) and total_actions > summary["actions_count"]:
+                            summary["actions_count"] = total_actions
+                    elif "event_type" not in row:
+                        summary["actions_count"] += 1
+        except Exception as exc:
+            logger.warning(f"扫描动作日志失败: {log_path}, error={exc}")
+        return summary
+
+    @classmethod
+    def reconcile_durable_completion(cls, simulation_id: str) -> Optional[SimulationRunState]:
+        """Promote command-wait/stopped runs when durable action logs prove completion.
+
+        OASIS can finish its bounded loop and then wait for commands. If an operator
+        stops that waiting process, the process state may say stopped even though the
+        simulation semantics are complete. Durable platform action logs are the source
+        of truth for that closeout state.
+        """
+        state = cls.get_run_state(simulation_id)
+        if not state:
+            return None
+
+        sim_dir = os.path.join(cls.RUN_STATE_DIR, simulation_id)
+        platform_logs = {
+            "twitter": os.path.join(sim_dir, "twitter", "actions.jsonl"),
+            "reddit": os.path.join(sim_dir, "reddit", "actions.jsonl"),
+        }
+        summaries = {platform: cls._scan_action_log_summary(path) for platform, path in platform_logs.items()}
+        enabled = {platform: summary for platform, summary in summaries.items() if summary.get("exists")}
+        if not enabled:
+            return state
+
+        for platform, summary in enabled.items():
+            completed_attr = f"{platform}_completed"
+            running_attr = f"{platform}_running"
+            actions_attr = f"{platform}_actions_count"
+            round_attr = f"{platform}_current_round"
+            setattr(state, completed_attr, bool(summary.get("completed")))
+            if summary.get("completed"):
+                setattr(state, running_attr, False)
+            setattr(state, actions_attr, int(summary.get("actions_count") or 0))
+            setattr(state, round_attr, max(getattr(state, round_attr), int(summary.get("max_round") or 0)))
+
+        state.current_round = max(state.current_round, state.twitter_current_round, state.reddit_current_round)
+        observed_total_rounds = max(int(summary.get("total_rounds") or 0) for summary in enabled.values())
+        if observed_total_rounds and not state.total_rounds:
+            state.total_rounds = observed_total_rounds
+
+        all_enabled_completed = all(summary.get("completed") for summary in enabled.values())
+        if all_enabled_completed and state.runner_status in {
+            RunnerStatus.RUNNING,
+            RunnerStatus.STOPPING,
+            RunnerStatus.STOPPED,
+            RunnerStatus.FAILED,
+        }:
+            state.runner_status = RunnerStatus.COMPLETED
+            state.twitter_running = False
+            state.reddit_running = False
+            if not state.completed_at:
+                state.completed_at = datetime.now().isoformat()
+        cls._save_run_state(state)
+        return state
     
     @classmethod
     def _terminate_process(cls, process: subprocess.Popen, simulation_id: str, timeout: int = 10):

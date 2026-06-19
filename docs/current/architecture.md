@@ -73,6 +73,28 @@ python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산
 - RWA/실물자산/토큰화 topic은 시장형 universe summaries와 human-readable cluster label을 사용합니다.
 - cluster label은 `Semantic outcome cluster` 같은 내부 개발자 문구가 아니라 `규제 명확성 확산형`, `DeFi 담보 확산형`, `규제 제한 지연형`처럼 사용자-facing label을 우선합니다.
 
+## Runtime cycle hardening
+
+반복 canary/OASIS/report 사이클은 process 상태보다 durable artifact를 우선해 판정합니다.
+
+```text
+Graphiti /messages accepted + duplicate edge warning
+→ native_ingest_state=pass 또는 repaired 유지
+→ native_warning_state=warning 및 warnings[]에 duplicate_edge 기록
+```
+
+```text
+OASIS bounded loop 완료
+→ twitter/actions.jsonl + reddit/actions.jsonl 의 simulation_end 확인
+→ command-wait 상태에서 stop되어도 semantic completion은 completed로 승격
+```
+
+```text
+Report generation watcher timeout
+→ 같은 report_id의 full_report.md가 존재하고 non-empty이면
+→ ReportManager.reconcile_report_completion()이 completed 상태로 복구
+```
+
 ## BettaFish bridge runner
 
 `./scripts/bettafish-single-e2e-runner.py`는 BettaFish 최종 Markdown 보고서를 MiroFish seed로 투입하는 resume-safe runner입니다.

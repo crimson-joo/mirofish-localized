@@ -634,7 +634,7 @@ class MultiverseManager:
         simulation_manager = SimulationManager()
         for child in experiment.children:
             state = simulation_manager.get_simulation(child.simulation_id)
-            run_state = SimulationRunner.get_run_state(child.simulation_id)
+            run_state = SimulationRunner.reconcile_durable_completion(child.simulation_id) or SimulationRunner.get_run_state(child.simulation_id)
             if run_state and run_state.runner_status in [RunnerStatus.STARTING, RunnerStatus.RUNNING]:
                 child.status = "running"
             elif run_state and run_state.runner_status == RunnerStatus.COMPLETED:

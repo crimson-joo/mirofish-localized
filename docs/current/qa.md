@@ -15,6 +15,8 @@
 7. Multiverse outcome cluster label은 `Semantic outcome cluster` 같은 내부 문구가 아니라 사용자가 읽을 수 있는 한국어 label로 표시된다.
 8. BettaFish→MiroFish bridge runner는 SIGTERM/timeout 이후 resume state로 이어서 실행 가능해야 한다.
 9. README와 current docs는 현재 localized 상태, 한국어 화면, 실제 검증 범위를 반영해야 한다.
+10. 반복 사이클 안정화 기준: Graphiti duplicate edge 경고는 실패와 분리되어 `native_warning_state=warning`으로 기록되어야 하며, OASIS command-wait 후 stop된 run도 durable `actions.jsonl`의 양 플랫폼 `simulation_end`가 있으면 completed로 승격되어야 한다.
+11. 리포트 생성 watcher가 끊겨도 `full_report.md`가 완성되어 있으면 같은 `report_id`를 재실행/조회할 때 completed 상태로 복구되어야 한다.
 
 ## 로컬 QA 기준
 
@@ -25,10 +27,10 @@
 - Console: blocker JS error 없음
 - Smoke: `./scripts/local-smoke.sh` PASS
 - Native extraction gate: `GRAPHITI_NATIVE_ONLY_SMOKE=1 ./scripts/graphiti-native-smoke.py` PASS 또는 명확한 BLOCKED 사유
-- Multiverse focused tests: `cd backend && uv run pytest tests/test_multiverse_manager.py tests/test_multiverse_orchestration.py tests/test_multiverse_advanced_orchestration.py tests/test_route_smoke.py -q` PASS
+- Multiverse focused tests: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager tests.test_route_smoke tests.test_runtime_cycle_hardening -v` PASS
 - Multiverse API smoke: `/api/simulation/multiverse/create`, `/api/simulation/multiverse/<mv_id>`, `/api/simulation/multiverse/list`, `/prepare`, `/prepare/status`, `/start`, `/advance`, `/status`, `/aggregate`, `/report`, `/report-agent-context`가 실험/child simulation/queue/aggregate/report-agent context shape을 반환해야 합니다.
 - Multiverse UI smoke: Step1의 “멀티버스 시뮬레이션” 버튼이 `/multiverse/:multiverseId` dashboard로 이동하고, universe card/status/async prepare task/progress/semantic aggregate/report/disclaimer가 보여야 합니다.
-- Multiverse label smoke: `cd backend && uv run pytest tests/test_multiverse_manager.py -q`에서 human-readable market label 테스트가 PASS해야 하며, 결과 label에 `Semantic outcome cluster`가 남아 있으면 실패입니다.
+- Multiverse label smoke: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager.MultiverseManagerTest.test_semantic_clusters_use_human_readable_market_labels -v`에서 human-readable market label 테스트가 PASS해야 하며, 결과 label에 `Semantic outcome cluster`가 남아 있으면 실패입니다.
 - Live local-runtime canary: `python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산 토큰화 시장 반응"`은 LLM/embedding/Graphiti endpoint preflight를 통과하거나, 실패 시 `BLOCKED`로 fail-closed해야 합니다.
 - Documentation QA: `README.md`, `docs/README.md`, `docs/current/product.md`, `docs/current/design.md`가 현재 localized 상태와 한국어 screenshot을 가리켜야 합니다.
 
