@@ -239,6 +239,16 @@ class SimulationRunner:
             cls._run_states[simulation_id] = state
         return state
     
+    @staticmethod
+    def _is_process_live(pid: Optional[int]) -> bool:
+        if not pid:
+            return False
+        try:
+            os.kill(int(pid), 0)
+            return True
+        except (OSError, ValueError, TypeError):
+            return False
+
     @classmethod
     def _load_run_state(cls, simulation_id: str) -> Optional[SimulationRunState]:
         """从文件加载运行状态"""
@@ -250,9 +260,17 @@ class SimulationRunner:
             with open(state_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             
+            raw_runner_status = data.get("runner_status", "idle")
+            try:
+                runner_status = RunnerStatus(raw_runner_status)
+                status_error = data.get("error")
+            except ValueError:
+                runner_status = RunnerStatus.FAILED
+                status_error = f"Invalid persisted runner_status: {raw_runner_status}"
+
             state = SimulationRunState(
                 simulation_id=simulation_id,
-                runner_status=RunnerStatus(data.get("runner_status", "idle")),
+                runner_status=runner_status,
                 current_round=data.get("current_round", 0),
                 total_rounds=data.get("total_rounds", 0),
                 simulated_hours=data.get("simulated_hours", 0),
@@ -271,9 +289,19 @@ class SimulationRunner:
                 started_at=data.get("started_at"),
                 updated_at=data.get("updated_at", datetime.now().isoformat()),
                 completed_at=data.get("completed_at"),
-                error=data.get("error"),
+                error=status_error,
                 process_pid=data.get("process_pid"),
             )
+            if state.runner_status in {RunnerStatus.STARTING, RunnerStatus.RUNNING}:
+                process = cls._processes.get(simulation_id)
+                pid_live = cls._is_process_live(state.process_pid) if state.process_pid else False
+                if process is None and not pid_live:
+                    state.runner_status = RunnerStatus.FAILED
+                    state.twitter_running = False
+                    state.reddit_running = False
+                    orphan_message = f"Orphaned persisted runner state without live process: pid={state.process_pid}"
+                    state.error = f"{state.error}; {orphan_message}" if state.error else orphan_message
+                    cls._save_run_state(state)
             
             # 加载最近动作
             actions_data = data.get("recent_actions", [])
@@ -683,15 +711,25 @@ class SimulationRunner:
                             if action.round_num and action.round_num > state.current_round:
                                 state.current_round = action.round_num
                             
-                            # 如果启用了图谱记忆更新，将活动发送到Zep
+                            # 如果启用了图谱记忆更新，将活动发送到Graphiti/Zep
                             if graph_updater:
-                                graph_updater.add_activity_from_dict(action_data, platform)
+                                try:
+                                    graph_updater.add_activity_from_dict(action_data, platform)
+                                except Exception as exc:
+                                    state.runner_status = RunnerStatus.FAILED
+                                    state.twitter_running = False
+                                    state.reddit_running = False
+                                    state.error = f"Graph memory action ingest failed: {exc}"
+                                    cls._save_run_state(state)
+                                    raise
                             
                         except json.JSONDecodeError:
                             pass
                 return f.tell()
         except Exception as e:
             logger.warning(f"读取动作日志失败: {log_path}, error={e}")
+            if state.runner_status == RunnerStatus.FAILED and state.error and "Graph memory action ingest failed" in state.error:
+                raise
             return position
     
     @classmethod

@@ -6,6 +6,10 @@
 - OASIS bounded loop가 완료된 뒤 command-wait 상태에서 stop되어도 durable `actions.jsonl`의 `simulation_end` 근거로 child/multiverse 상태를 `completed`로 승격하도록 했습니다.
 - 리포트 생성 watcher/세션이 끊긴 경우에도 같은 `report_id`의 non-empty `full_report.md`를 기준으로 completed 상태를 복구하는 `ReportManager.reconcile_report_completion()`을 추가했습니다.
 - 위 세 가지 반복 사이클 hardening에 대한 regression test를 `backend/tests/test_runtime_cycle_hardening.py`에 추가했습니다.
+- Simulation action memory를 Graphiti native ingest/search/Report Agent quick_search evidence까지 검증하는 canary를 추가하고, native action ingest 실패 시 projection evidence로 기록하지 않도록 fail-closed 처리했습니다.
+- Report Agent의 `tool_call + Final Answer` protocol conflict를 도구 실행 없는 재시도 후 fail-closed로 바꾸고, search tool 실패를 문자열 evidence로 삼키지 않도록 했습니다.
+- Graphiti structured edge/node-resolution 정규화에서 payload-local duplicate edge와 self/invalid duplicate resolution을 줄였습니다.
+- Multiverse prepare task 중복 등록 방지, start 실패 child의 failed 고정, orphan/invalid persisted runner state 정규화로 long-run queue 안정성을 보강했습니다.
 
 ## 2026-06-18
 

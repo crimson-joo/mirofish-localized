@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 class _GraphitiStub(BaseHTTPRequestHandler):
     calls = []
+    messages = []
 
     def _send(self, status=200, payload=None):
         self.send_response(status)
@@ -26,8 +27,17 @@ class _GraphitiStub(BaseHTTPRequestHandler):
         payload = json.loads(self.rfile.read(length).decode() or "{}")
         type(self).calls.append(("POST", self.path, payload))
         if self.path == "/search":
-            self._send(200, {"facts": [{"uuid": "fact1", "name": "RELATES_TO", "fact": "Alice influences Bob", "valid_at": None, "invalid_at": None, "created_at": "2026-01-01T00:00:00Z", "expired_at": None}]})
+            query = payload.get("query", "")
+            matching_messages = [message for message in type(self).messages if query and query in message.get("content", "")]
+            facts = [
+                {"uuid": f"fact{idx}", "name": "ACTION_MEMORY", "fact": message["content"], "valid_at": None, "invalid_at": None, "created_at": "2026-01-01T00:00:00Z", "expired_at": None}
+                for idx, message in enumerate(matching_messages, start=1)
+            ]
+            if not facts:
+                facts = [{"uuid": "fact1", "name": "RELATES_TO", "fact": "Alice influences Bob", "valid_at": None, "invalid_at": None, "created_at": "2026-01-01T00:00:00Z", "expired_at": None}]
+            self._send(200, {"facts": facts})
         elif self.path == "/messages":
+            type(self).messages.extend(payload.get("messages", []))
             self._send(202, {"success": True, "message": "Messages processed synchronously; native=1, repaired=0, failed=0"})
         else:
             self._send(202, {"success": True})
@@ -55,6 +65,7 @@ class GraphitiProviderTest(unittest.TestCase):
 
     def setUp(self):
         _GraphitiStub.calls.clear()
+        _GraphitiStub.messages.clear()
         self.tmpdir = tempfile.TemporaryDirectory()
         os.environ["GRAPH_PROVIDER"] = "graphiti"
         os.environ["GRAPHITI_BASE_URL"] = self.url
@@ -186,6 +197,73 @@ class GraphitiProviderTest(unittest.TestCase):
 
             graph_data = builder.get_graph_data(graph_id)
             self.assertIn("native_search_failed", [e["status"] for e in graph_data["graphiti_events"]])
+        finally:
+            _GraphitiStub.do_POST = original_do_post
+
+
+    def test_action_memory_ingest_is_searchable_and_statused(self):
+        from app.services.graph_provider import get_graph_builder, get_graph_memory_manager, get_graph_tools
+        from app.services.graphiti_projection_cache import _load_graph
+
+        builder = get_graph_builder()
+        graph_id = builder.create_graph("action memory canary")
+        builder.set_ontology(graph_id, {"entity_types": [{"name": "Agent", "description": "agent"}, {"name": "Post", "description": "post"}], "edge_types": []})
+        updater = get_graph_memory_manager().create_updater("sim_canary", graph_id)
+        updater.add_activity_from_dict({
+            "round": 3,
+            "timestamp": "2026-06-19T00:00:00",
+            "agent_id": 42,
+            "agent_name": "CanaryAgent",
+            "action_type": "CREATE_POST",
+            "action_args": {"content": "CANARY_ACTION_MEMORY_GRAPHITI_EVIDENCE_619 koi market panic signal"},
+            "success": True,
+        }, "twitter")
+
+        result = get_graph_tools().quick_search(graph_id, "CANARY_ACTION_MEMORY_GRAPHITI_EVIDENCE_619", limit=5)
+
+        self.assertGreaterEqual(result.total_count, 1)
+        self.assertIn("CANARY_ACTION_MEMORY_GRAPHITI_EVIDENCE_619", "\n".join(result.facts))
+        graph = _load_graph(graph_id)
+        self.assertEqual(graph["graphiti_status"]["native_action_ingest_state"], "pass")
+        self.assertIn("native_action_ingest_pass", [event["status"] for event in graph["graphiti_events"]])
+        self.assertTrue(any(
+            "CANARY_ACTION_MEMORY_GRAPHITI_EVIDENCE_619" in edge.get("fact", "")
+            for edge in graph.get("edges", [])
+        ))
+
+    def test_action_memory_ingest_fails_closed_without_projection_write(self):
+        from app.services.graph_provider import get_graph_builder, get_graph_memory_manager
+        from app.services.graphiti_projection_cache import _load_graph
+
+        original_do_post = _GraphitiStub.do_POST
+
+        def failing_action_messages(self):
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length).decode() or "{}")
+            type(self).calls.append(("POST", self.path, payload))
+            if self.path == "/messages":
+                self._send(202, {"success": False, "message": "Messages processed synchronously; native=0, repaired=0, failed=1"})
+            else:
+                self._send(202, {"success": True})
+
+        _GraphitiStub.do_POST = failing_action_messages
+        try:
+            builder = get_graph_builder()
+            graph_id = builder.create_graph("action memory fail")
+            updater = get_graph_memory_manager().create_updater("sim_fail", graph_id)
+            with self.assertRaises(RuntimeError):
+                updater.add_activity_from_dict({
+                    "agent_name": "CanaryAgent",
+                    "action_type": "CREATE_POST",
+                    "action_args": {"content": "CANARY_ACTION_MEMORY_SHOULD_NOT_PROJECT"},
+                }, "twitter")
+
+            graph = _load_graph(graph_id)
+            self.assertEqual(graph["graphiti_status"]["native_action_ingest_state"], "failed")
+            self.assertFalse(any(
+                "CANARY_ACTION_MEMORY_SHOULD_NOT_PROJECT" in edge.get("fact", "")
+                for edge in graph.get("edges", [])
+            ))
         finally:
             _GraphitiStub.do_POST = original_do_post
 

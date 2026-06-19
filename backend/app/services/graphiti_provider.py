@@ -72,23 +72,37 @@ def _record_graphiti_event(
         "native_ingest_state": status_obj.get("native_ingest_state", "unknown"),
         "projection_cache_enabled": True,
     })
-    if operation == "messages":
-        ingest_state = (details or {}).get("native_ingest_state")
-        if ingest_state:
-            status_obj["native_ingest_state"] = ingest_state
+    if operation in {"messages", "action_messages"}:
+        if operation == "action_messages":
+            ingest_state = (details or {}).get("native_action_ingest_state")
+            state_key = "native_action_ingest_state"
         else:
-            status_obj["native_ingest_state"] = "pass" if native_success else "failed"
+            ingest_state = (details or {}).get("native_ingest_state")
+            state_key = "native_ingest_state"
+        if ingest_state:
+            status_obj[state_key] = ingest_state
+        else:
+            status_obj[state_key] = "pass" if native_success else "failed"
         warnings = (details or {}).get("graphiti_warnings") or []
         if warnings:
             existing_warnings = status_obj.setdefault("warnings", [])
+            existing_keys = {
+                (item.get("operation"), item.get("category"), item.get("message"))
+                for item in existing_warnings
+            }
+            graph_warning_records = graph.setdefault("graphiti_warnings", [])
             for warning in warnings:
+                warning_key = (operation, warning.get("category"), warning.get("message"))
+                if warning_key in existing_keys:
+                    continue
+                existing_keys.add(warning_key)
                 record = {
                     "at": event["at"],
                     "operation": operation,
                     **warning,
                 }
                 existing_warnings.append(record)
-                graph.setdefault("graphiti_warnings", []).append(record)
+                graph_warning_records.append(record)
             status_obj["native_warning_state"] = "warning"
         else:
             status_obj.setdefault("native_warning_state", "none")
@@ -258,11 +272,15 @@ class GraphitiGraphBuilder(GraphitiProjectionGraphBuilder):
                     if failed_count > 0 or response.get("success") is False:
                         raise RuntimeError(response.get("message") or "Graphiti patched /messages reported failure")
                 ingest_state = _ingest_state(native_total, repaired_total, failed_total)
-                graphiti_warnings = [
-                    warning
-                    for response in responses
-                    for warning in _extract_graphiti_warnings(response)
-                ]
+                graphiti_warnings = []
+                warning_keys = set()
+                for response in responses:
+                    for warning in _extract_graphiti_warnings(response):
+                        warning_key = (warning.get("category"), warning.get("message"))
+                        if warning_key in warning_keys:
+                            continue
+                        warning_keys.add(warning_key)
+                        graphiti_warnings.append(warning)
                 _record_graphiti_event(
                     graph_id,
                     "messages",
@@ -399,9 +417,46 @@ class GraphitiGraphMemoryUpdater(GraphitiProjectionGraphMemoryUpdater):
             "timestamp": datetime.now().isoformat(),
             "source_description": "mirofish-localized simulation action",
         }
+        response: Dict[str, Any] = {}
         try:
-            _json_request("POST", "/messages", {"group_id": self.graph_id, "messages": [message]}, timeout=90.0)
+            response = _json_request("POST", "/messages", {"group_id": self.graph_id, "messages": [message]}, timeout=90.0)
+            native_count, repaired_count, failed_count = _message_ingest_counts(response)
+            ingest_state = _ingest_state(native_count, repaired_count, failed_count)
+            graphiti_warnings = _extract_graphiti_warnings(response)
+            if failed_count > 0 or response.get("success") is False:
+                raise RuntimeError(response.get("message") or "Graphiti patched /messages reported action ingest failure")
+            _record_graphiti_event(
+                self.graph_id,
+                "action_messages",
+                f"native_action_ingest_{ingest_state}",
+                native_success=True,
+                details={
+                    "simulation_action": True,
+                    "platform": platform,
+                    "native_count": native_count,
+                    "repaired_count": repaired_count,
+                    "failed_count": failed_count,
+                    "native_action_ingest_state": ingest_state,
+                    "graphiti_warnings": graphiti_warnings,
+                },
+            )
         except Exception as exc:
+            try:
+                _record_graphiti_event(
+                    self.graph_id,
+                    "action_messages",
+                    "native_action_ingest_failed",
+                    native_success=False,
+                    error=str(exc),
+                    details={
+                        "simulation_action": True,
+                        "platform": platform,
+                        "native_action_ingest_state": "failed",
+                        "response": response,
+                    },
+                )
+            except Exception:
+                pass
             raise RuntimeError(f"Graphiti action episode ingest failed for group {self.graph_id}: {exc}") from exc
         super().add_activity_from_dict(data, platform)
 

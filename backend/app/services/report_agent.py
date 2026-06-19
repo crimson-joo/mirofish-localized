@@ -34,6 +34,10 @@ from .zep_tools import (
 logger = get_logger('mirofish.report_agent')
 
 
+class ReportAgentProtocolError(RuntimeError):
+    """Raised when an LLM response violates the Report Agent tool/final protocol."""
+
+
 class ReportLogger:
     """
     Report Agent 详细日志记录器
@@ -1061,7 +1065,7 @@ class ReportAgent:
                 
         except Exception as e:
             logger.error(t('report.toolExecFailed', toolName=tool_name, error=str(e)))
-            return f"工具执行失败: {str(e)}"
+            raise RuntimeError(f"工具执行失败: {str(e)}") from e
     
     # 合法的工具名称集合，用于裸 JSON 兜底解析时校验
     VALID_TOOL_NAMES = {"insight_forge", "panorama_search", "quick_search", "interview_agents"}
@@ -1336,8 +1340,7 @@ class ReportAgent:
                 )
 
                 if conflict_retries <= 2:
-                    # 前两次：丢弃本次响应，要求 LLM 重新回复
-                    messages.append({"role": "assistant", "content": response})
+                    # 丢弃本次响应，不把无效 assistant 消息放入历史，避免下一轮学习错误格式。
                     messages.append({
                         "role": "user",
                         "content": (
@@ -1349,18 +1352,9 @@ class ReportAgent:
                         ),
                     })
                     continue
-                else:
-                    # 第三次：降级处理，截断到第一个工具调用，强制执行
-                    logger.warning(
-                        t('report.sectionConflictDowngrade', title=section.title, conflictCount=conflict_retries)
-                    )
-                    first_tool_end = response.find('</tool_call>')
-                    if first_tool_end != -1:
-                        response = response[:first_tool_end + len('</tool_call>')]
-                        tool_calls = self._parse_tool_calls(response)
-                        has_tool_calls = bool(tool_calls)
-                    has_final_answer = False
-                    conflict_retries = 0
+                raise ReportAgentProtocolError(
+                    f"Report Agent protocol violation: tool_call_and_final_answer section={section.title}"
+                )
 
             # 记录 LLM 响应日志
             if self.report_logger:
@@ -1837,7 +1831,9 @@ class ReportAgent:
             )
             
             # 解析工具调用
-            tool_calls = self._parse_tool_calls(response)
+            tool_calls = self._parse_tool_calls(response or "")
+            if tool_calls and "Final Answer:" in (response or ""):
+                raise ReportAgentProtocolError("Report Agent protocol violation: tool_call_and_final_answer chat")
             
             if not tool_calls:
                 # 没有工具调用，直接返回响应
@@ -1876,8 +1872,11 @@ class ReportAgent:
             temperature=0.5
         )
         
+        if self._parse_tool_calls(final_response or ""):
+            raise ReportAgentProtocolError("Report Agent protocol violation: tool_call_in_final_phase chat")
+
         # 清理响应
-        clean_response = re.sub(r'<tool_call>.*?</tool_call>', '', final_response, flags=re.DOTALL)
+        clean_response = re.sub(r'<tool_call>.*?</tool_call>', '', final_response or "", flags=re.DOTALL)
         clean_response = re.sub(r'\[TOOL_CALL\].*?\)', '', clean_response)
         
         return {
