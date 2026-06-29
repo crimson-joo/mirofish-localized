@@ -13,6 +13,7 @@ import argparse
 import atexit
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -132,6 +133,12 @@ def audit_text(label: str, text: str) -> dict[str, int]:
         f"{label}_hangul": sum("가" <= c <= "힣" for c in text),
         f"{label}_cjk": sum("\u4e00" <= c <= "\u9fff" for c in text),
     }
+
+
+def generated_report_path(state_path: Path, report_id: object) -> Path:
+    safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", str(report_id or "unknown"))
+    safe_id = safe_id.strip("._-") or "unknown"
+    return state_path.parent / f"mirofish_generated_report_{safe_id}.md"
 
 
 def _locale_from_manifest_language(language: str | None) -> str | None:
@@ -452,6 +459,11 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         state.update(report_id=report_id, report_status=report_status.get("status"))
         report_payload = request_json(base, "GET", f"/api/report/{report_id}", args.locale, timeout=60)["data"]
         markdown = report_payload.get("markdown_content") or report_payload.get("content") or ""
+        if not markdown.strip():
+            raise RunnerError(f"Report {report_id} did not return markdown content.")
+        generated_report_path_value = generated_report_path(state.path, report_id)
+        generated_report_path_value.parent.mkdir(parents=True, exist_ok=True)
+        generated_report_path_value.write_text(markdown, encoding="utf-8")
 
         state.set_stage("report_agent_chat")
         chat = request_json(
@@ -472,6 +484,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "graph_id": graph_id,
             "simulation_id": simulation_id,
             "report_id": report_id,
+            "generated_report_path": str(generated_report_path_value),
             "graph_nodes": len(nodes),
             "graph_edges": len(edges),
             "graph_chunk_count": state.data.get("graph_chunk_count"),

@@ -35,6 +35,8 @@
 - Multiverse UI smoke: Step1의 “멀티버스 시뮬레이션” 버튼이 `/multiverse/:multiverseId` dashboard로 이동하고, universe card/status/async prepare task/progress/semantic aggregate/report/disclaimer가 보여야 합니다.
 - Multiverse label smoke: `cd backend && ./.venv/bin/python -m unittest tests.test_multiverse_manager.MultiverseManagerTest.test_semantic_clusters_use_human_readable_market_labels -v`에서 human-readable market label 테스트가 PASS해야 하며, 결과 label에 `Semantic outcome cluster`가 남아 있으면 실패입니다.
 - Live local-runtime canary: `python scripts/multiverse-long-run-eval.py --mode live --topic "RWA 실물자산 토큰화 시장 반응"`은 LLM/embedding/Graphiti endpoint preflight를 통과하거나, 실패 시 `BLOCKED`로 fail-closed해야 합니다.
+- Aquarium runner contract: `scripts/mirofish_aquarium_runner.py`는 `AQUARIUM_TOPIC`, `AQUARIUM_LOCALE`, `AQUARIUM_MODE=single`, `AQUARIUM_RUN_DIR`, `AQUARIUM_HANDOFF_MANIFEST`를 읽고 `$AQUARIUM_RUN_DIR/mirofish_result.json`을 써야 합니다. `multiverse`는 seeded path가 구현되기 전까지 명시적으로 실패해야 하며, unseeded multiverse를 real Aquarium 결과처럼 표시하면 안 됩니다.
+- Aquarium runner focused tests: `cd backend && uv run pytest tests/test_mirofish_aquarium_runner.py tests/test_bettafish_single_e2e_runner.py -q` PASS.
 - Documentation QA: `README.md`, `docs/README.md`, `docs/current/product.md`, `docs/current/design.md`가 현재 localized 상태와 한국어 screenshot을 가리켜야 합니다.
 
 ## Pages Canary 기준

@@ -32,6 +32,7 @@
 
 1. PR merge 전
    - backend route/provider tests
+   - Aquarium runner contract tests (`tests/test_mirofish_aquarium_runner.py`, `tests/test_bettafish_single_e2e_runner.py`)
    - frontend build
    - docker compose config
    - local smoke
