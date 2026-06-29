@@ -2,6 +2,8 @@
 
 ## 2026-06-29
 
+- Aquarium real integration용 `scripts/mirofish_aquarium_runner.py`를 추가했습니다. `AQUARIUM_*` env와 Aquarium v1 handoff manifest를 읽어 기존 BettaFish single bridge runner를 호출하고 `$AQUARIUM_RUN_DIR/mirofish_result.json`을 생성합니다.
+- `backend/tests/test_mirofish_aquarium_runner.py`를 추가해 manifest validation, single bridge command wiring, Graphiti/action-memory warning 보존, seeded multiverse 미지원 fail-closed, CLI smoke를 검증했습니다.
 - BettaFish handoff manifest를 직접 읽는 `--bettafish-manifest` 옵션을 bridge runner에 추가했습니다.
 - `scripts/run_bettafish_handoff_canary.sh`를 추가해 local smoke → BettaFish manifest seed → ontology/graph/simulation/report/chat canary를 한 명령으로 실행할 수 있게 했습니다.
 - Graphiti action-memory timeout이 발생해도 OASIS action 기록과 보고서 생성이 실패로 오염되지 않도록 `graph_memory_warnings[]`를 추가했습니다. Native ingest 실패는 `native_action_ingest_state=failed`로 남고 projection evidence로 PASS 처리하지 않습니다.
