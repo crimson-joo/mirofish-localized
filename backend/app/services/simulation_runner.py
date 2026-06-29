@@ -140,9 +140,27 @@ class SimulationRunState:
     
     # 错误信息
     error: Optional[str] = None
+
+    # Graph memory warnings are non-blocking product-run evidence. Native action
+    # ingest failures must stay visible, but should not turn a successfully
+    # recorded simulation action into a failed OASIS run.
+    graph_memory_warnings: List[Dict[str, Any]] = field(default_factory=list)
     
     # 进程ID（用于停止）
     process_pid: Optional[int] = None
+
+    def add_graph_memory_warning(self, *, platform: str, error: str, state: str = "failed") -> None:
+        warning = {
+            "state": state,
+            "platform": platform,
+            "error": error,
+            "recorded_at": datetime.now().isoformat(),
+        }
+        self.graph_memory_warnings.append(warning)
+        # Keep the latest warning visible in the legacy error field without
+        # marking runner_status failed.
+        self.error = f"Graph memory action ingest warning: {error}"
+        self.updated_at = datetime.now().isoformat()
     
     def add_action(self, action: AgentAction):
         """添加动作到最近动作列表"""
@@ -182,6 +200,8 @@ class SimulationRunState:
             "updated_at": self.updated_at,
             "completed_at": self.completed_at,
             "error": self.error,
+            "graph_memory_warnings": self.graph_memory_warnings,
+            "graph_memory_warning_count": len(self.graph_memory_warnings),
             "process_pid": self.process_pid,
         }
     
@@ -711,17 +731,23 @@ class SimulationRunner:
                             if action.round_num and action.round_num > state.current_round:
                                 state.current_round = action.round_num
                             
-                            # 如果启用了图谱记忆更新，将活动发送到Graphiti/Zep
+                            # If native graph action ingest fails, keep the
+                            # simulation action itself and expose the graph
+                            # memory degradation as warning evidence. Do not
+                            # let projection/cache writes make native memory
+                            # look successful, and do not fail the whole
+                            # product run solely because Graphiti timed out.
                             if graph_updater:
                                 try:
                                     graph_updater.add_activity_from_dict(action_data, platform)
                                 except Exception as exc:
-                                    state.runner_status = RunnerStatus.FAILED
-                                    state.twitter_running = False
-                                    state.reddit_running = False
-                                    state.error = f"Graph memory action ingest failed: {exc}"
+                                    state.add_graph_memory_warning(platform=platform, error=str(exc), state="failed")
                                     cls._save_run_state(state)
-                                    raise
+                                    graph_updater = None
+                                    logger.warning(
+                                        f"Graph memory action ingest degraded: simulation={state.simulation_id}, "
+                                        f"platform={platform}, error={exc}"
+                                    )
                             
                         except json.JSONDecodeError:
                             pass
