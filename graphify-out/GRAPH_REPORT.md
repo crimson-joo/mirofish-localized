@@ -5,12 +5,12 @@
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1916 nodes · 3421 edges · 156 communities (98 shown, 58 thin omitted)
+- 1916 nodes · 3421 edges · 159 communities (99 shown, 60 thin omitted)
 - Extraction: 85% EXTRACTED · 15% INFERRED · 0% AMBIGUOUS · INFERRED: 524 edges (avg confidence: 0.57)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `a038ed82`
+- Built from commit: `3afd4d05`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -51,12 +51,12 @@
 - [[_COMMUNITY_Community 33|Community 33]]
 - [[_COMMUNITY_Community 34|Community 34]]
 - [[_COMMUNITY_Community 35|Community 35]]
-- [[_COMMUNITY_Community 36|Community 36]]
 - [[_COMMUNITY_Community 37|Community 37]]
 - [[_COMMUNITY_Community 38|Community 38]]
 - [[_COMMUNITY_Community 39|Community 39]]
 - [[_COMMUNITY_Community 40|Community 40]]
 - [[_COMMUNITY_Community 41|Community 41]]
+- [[_COMMUNITY_Community 42|Community 42]]
 - [[_COMMUNITY_Community 43|Community 43]]
 - [[_COMMUNITY_Community 44|Community 44]]
 - [[_COMMUNITY_Community 45|Community 45]]
@@ -110,12 +110,12 @@
 - [[_COMMUNITY_Community 93|Community 93]]
 - [[_COMMUNITY_Community 94|Community 94]]
 - [[_COMMUNITY_Community 95|Community 95]]
-- [[_COMMUNITY_Community 98|Community 98]]
+- [[_COMMUNITY_Community 96|Community 96]]
+- [[_COMMUNITY_Community 97|Community 97]]
 - [[_COMMUNITY_Community 100|Community 100]]
-- [[_COMMUNITY_Community 102|Community 102]]
-- [[_COMMUNITY_Community 104|Community 104]]
+- [[_COMMUNITY_Community 101|Community 101]]
+- [[_COMMUNITY_Community 103|Community 103]]
 - [[_COMMUNITY_Community 105|Community 105]]
-- [[_COMMUNITY_Community 106|Community 106]]
 - [[_COMMUNITY_Community 107|Community 107]]
 - [[_COMMUNITY_Community 108|Community 108]]
 - [[_COMMUNITY_Community 109|Community 109]]
@@ -164,6 +164,9 @@
 - [[_COMMUNITY_Community 152|Community 152]]
 - [[_COMMUNITY_Community 153|Community 153]]
 - [[_COMMUNITY_Community 154|Community 154]]
+- [[_COMMUNITY_Community 155|Community 155]]
+- [[_COMMUNITY_Community 156|Community 156]]
+- [[_COMMUNITY_Community 157|Community 157]]
 
 ## God Nodes (most connected - your core abstractions)
 1. `Config` - 73 edges
@@ -189,39 +192,39 @@
 - `run_bounded()` --calls--> `TaskManager`  [INFERRED]
   scripts/multiverse-long-run-eval.py → backend/app/models/task.py
 
-## Communities (156 total, 58 thin omitted)
+## Communities (159 total, 60 thin omitted)
 
 ### Community 0 - "Community 0"
 Cohesion: 0.05
-Nodes (52): RuntimeError, assemble_full_report(), _clean_section_content(), delete_report(), _ensure_report_folder(), _ensure_reports_dir(), get_agent_log(), _get_agent_log_path() (+44 more)
+Nodes (56): Enum, get_graph_memory_manager(), CommandStatus, CommandType, from_dict(), IPCCommand, IPCResponse, 模拟IPC通信模块 用于Flask后端和模拟脚本之间的进程间通信  通过文件系统实现简单的命令/响应模式： 1. Flask写入命令到 commands/ 目录 (+48 more)
 
 ### Community 1 - "Community 1"
-Cohesion: 0.05
-Nodes (38): main(), _make_test_image(), GraphBuilderService, GraphInfo, 图谱构建服务 接口2：使用Zep API构建Standalone Graph, 分批添加文本到图谱，返回所有 episode 的 uuid 列表, 等待所有 episode 处理完成（通过查询每个 episode 的 processed 状态）, 图谱构建服务     负责调用Zep API构建知识图谱 (+30 more)
+Cohesion: 0.06
+Nodes (45): RuntimeError, assemble_full_report(), _clean_section_content(), delete_report(), _ensure_report_folder(), _ensure_reports_dir(), get_agent_log(), _get_agent_log_path() (+37 more)
 
 ### Community 2 - "Community 2"
 Cohesion: 0.04
-Nodes (60): advance_multiverse_queue(), aggregate_multiverse_experiment(), chat_with_multiverse_report_agent(), compare_single_with_multiverse(), create_multiverse_experiment(), download_simulation_config(), download_simulation_script(), get_agent_stats() (+52 more)
-
-### Community 3 - "Community 3"
-Cohesion: 0.04
 Nodes (51): active, answerMatch, answerText, bioMatch, cleaned, cleanedQuote, countMatch, currentPlatform (+43 more)
 
+### Community 3 - "Community 3"
+Cohesion: 0.05
+Nodes (31): main(), _make_test_image(), OntologyGenerator, 本体生成服务 接口1：分析文本内容，生成适合社会模拟的实体和关系类型定义, 将任意格式的名称转换为 PascalCase（如 'works_for' -> 'WorksFor', 'person' -> 'Person'）, 本体生成器     分析文本内容，生成实体和关系类型定义, 生成本体定义                  Args:             document_texts: 文档文本列表             sim, 将本体定义转换为Python代码（类似ontology.py）                  Args:             ontology: 本体定 (+23 more)
+
 ### Community 4 - "Community 4"
-Cohesion: 0.08
-Nodes (17): _clamp_int(), _first_sentence(), MultiverseManager, Answer a multiverse report question using aggregate context.          LLM mode i, Product-shaped comparison between the old single-run path and multiverse output., Summarize child simulation states into ensemble-frequency evidence., Creates, persists, and summarizes multiverse experiments., Create a parent experiment and N child simulation shells. (+9 more)
+Cohesion: 0.04
+Nodes (47): advance_multiverse_queue(), aggregate_multiverse_experiment(), chat_with_multiverse_report_agent(), compare_single_with_multiverse(), create_multiverse_experiment(), download_simulation_script(), get_agent_stats(), get_env_status() (+39 more)
 
 ### Community 5 - "Community 5"
+Cohesion: 0.08
+Nodes (28): Config, GraphitiProjectionEntityReader, GraphitiProjectionGraphMemoryManager, GraphitiProjectionToolsService, create_updater(), GraphitiProjectionGraphMemoryManager, GraphitiProjectionGraphMemoryUpdater, GraphitiEntityReader (+20 more)
+
+### Community 6 - "Community 6"
 Cohesion: 0.06
 Nodes (18): AgentActivity, create_updater(), get_all_stats(), Zep图谱记忆更新服务 将模拟中的Agent活动动态更新到Zep图谱中, 引用帖子 - 包含原帖内容、作者信息和引用评论, 发表评论 - 包含评论内容和所评论的帖子信息, Zep图谱记忆更新器          监控模拟的actions日志文件，将新的agent活动实时更新到Zep图谱中。     按平台分组，每累积BATCH_S, 初始化更新器                  Args:             graph_id: Zep图谱ID             api_key: (+10 more)
 
-### Community 6 - "Community 6"
+### Community 7 - "Community 7"
 Cohesion: 0.05
 Nodes (41): `backend/app/services/graphiti_provider.py`, Code changes observed, code:text (Local runtime baseline: PASS), code:text (Graphiti evidence observability: PASS), code:text (PASS messages {'message': 'Messages processed synchronously;), code:text (native_ingest_state: pass), code:text (Docker Compose local stack: PASS), code:text (.env.example) (+33 more)
-
-### Community 7 - "Community 7"
-Cohesion: 0.06
-Nodes (19): Optionally ask the configured LLM to cluster outcomes; fall back safely., 报告管理器          负责报告的持久化存储和检索          文件结构（分章节输出）：     reports/       {report_id, ReportManager, AgentInterview, InsightForgeResult, InterviewResult, llm(), NodeInfo (+11 more)
 
 ### Community 8 - "Community 8"
 Cohesion: 0.08
@@ -232,48 +235,48 @@ Cohesion: 0.08
 Nodes (14): OasisProfileGenerator, 实时输出生成的人设到控制台（完整内容，不截断）, 保存Profile到文件（根据平台选择正确格式）                  OASIS平台格式要求：         - Twitter: CSV格式, 保存Twitter Profile为CSV格式（符合OASIS官方要求）                  OASIS Twitter要求的CSV字段：, 标准化gender字段为OASIS要求的英文格式                  OASIS要求: male, female, other, 保存Reddit Profile为JSON格式                  使用与 to_reddit_format() 一致的格式，确保 OASIS 能, [已废弃] 请使用 save_profiles() 方法, OASIS Profile生成器          将Zep图谱中的实体转换为OASIS模拟所需的Agent Profile          优化特性： (+6 more)
 
 ### Community 10 - "Community 10"
-Cohesion: 0.06
-Nodes (34): 목표, 브라우저 확인, 구성, 실행, backend health 실패, code:text (MiroFish Step1~Step5 제품 흐름을 로컬에서 실행하고,), code:bash (./scripts/graphiti-extraction-ab.py), code:text (A. GRAPHITI_STRUCTURED_NORMALIZATION=0) (+26 more)
+Cohesion: 0.07
+Nodes (33): chat_with_report_agent(), check_report_status(), download_report(), generate_report(), get_agent_log(), get_console_log(), get_generate_status(), get_report() (+25 more)
 
 ### Community 11 - "Community 11"
-Cohesion: 0.11
-Nodes (25): Enum, 任务状态管理 用于跟踪长时间运行的任务（如图谱构建）, TaskStatus, from_dict(), _humanize_cluster_label(), MultiverseExperiment, MultiverseStatus, Multiverse/ensemble simulation orchestration.  A multiverse experiment is a ligh (+17 more)
+Cohesion: 0.06
+Nodes (34): 목표, 브라우저 확인, 구성, 실행, backend health 실패, code:text (MiroFish Step1~Step5 제품 흐름을 로컬에서 실행하고,), code:bash (./scripts/graphiti-extraction-ab.py), code:text (A. GRAPHITI_STRUCTURED_NORMALIZATION=0) (+26 more)
 
 ### Community 12 - "Community 12"
 Cohesion: 0.17
 Nodes (20): apply_handoff_manifest_defaults(), audit_text(), BridgeState, build_parser(), generated_report_path(), _locale_from_manifest_language(), Logger, main() (+12 more)
 
 ### Community 13 - "Community 13"
-Cohesion: 0.07
-Nodes (29): chat_with_report_agent(), check_report_status(), generate_report(), get_agent_log(), get_console_log(), get_generate_status(), get_graph_statistics_tool(), get_report_by_simulation() (+21 more)
+Cohesion: 0.13
+Nodes (12): 规划报告大纲                  使用LLM分析模拟需求，规划报告的目录结构                  Args:, Raised when an LLM response violates the Report Agent tool/final protocol., Report Agent - 模拟报告生成Agent      采用ReACT（Reasoning + Acting）模式：     1. 规划阶段：分析模拟需, 初始化Report Agent                  Args:             graph_id: 图谱ID             si, ReportAgent, ReportAgentProtocolError, ReportOutline, ReportSection (+4 more)
 
 ### Community 14 - "Community 14"
-Cohesion: 0.14
-Nodes (21): get_graph_memory_manager(), AgentAction, _check_all_platforms_completed(), cleanup_all_simulations(), get_actions(), get_agent_stats(), get_all_actions(), get_interview_history() (+13 more)
+Cohesion: 0.13
+Nodes (17): _append_jsonl(), get_all_stats(), _graph_dir(), GraphitiProjectionGraphBuilder, _load_graph(), _node_by_type(), _node_matches_type(), _now() (+9 more)
 
 ### Community 15 - "Community 15"
 Cohesion: 0.11
-Nodes (10): create_simulation(), get_simulation_profiles(), 获取模拟的Agent Profile          Query参数：         platform: 平台类型（reddit/twitter，默认red, 创建新的模拟          注意：max_rounds等参数由LLM智能生成，无需手动设置          请求（JSON）：         {, 模拟管理器          核心功能：     1. 从Zep图谱读取实体并过滤     2. 生成OASIS Agent Profile     3. 使用, 创建新的模拟                  Args:             project_id: 项目ID             graph_id:, 准备模拟环境（全程自动化）                  步骤：         1. 从Zep图谱读取并过滤实体         2. 为每个实体生成OA, _select_entities_for_personas() (+2 more)
+Nodes (14): GraphBuilderService, GraphInfo, 分批添加文本到图谱，返回所有 episode 的 uuid 列表, 等待所有 episode 处理完成（通过查询每个 episode 的 processed 状态）, 图谱构建服务     负责调用Zep API构建知识图谱, 获取完整图谱数据（包含详细信息）                  Args:             graph_id: 图谱ID, 异步构建图谱                  Args:             text: 输入文本             ontology: 本体定义（, fetch_all_edges() (+6 more)
 
 ### Community 16 - "Community 16"
+Cohesion: 0.14
+Nodes (16): GraphitiProjectionGraphBuilder, GraphitiProjectionGraphMemoryUpdater, _base_url(), create_updater(), _extract_graphiti_warnings(), GraphitiGraphBuilder, GraphitiGraphMemoryUpdater, _ingest_state() (+8 more)
+
+### Community 17 - "Community 17"
 Cohesion: 0.11
 Nodes (14): Graphiti, _coerce_int(), get_graphiti(), initialize_graphiti(), _json_from_completion(), MiroFishStructuredOpenAIClient, _normalize_structured_payload(), _openai_llm_client() (+6 more)
 
-### Community 17 - "Community 17"
+### Community 18 - "Community 18"
 Cohesion: 0.08
 Nodes (25): ⚡ 项目概述, 1. 配置环境变量, 📬 更多交流, 📄 致谢, 📈 项目统计, 1. 武汉大学舆情推演预测 + MiroFish项目讲解, 2. 《红楼梦》失传结局推演预测, 2. 安装依赖 (+17 more)
 
-### Community 18 - "Community 18"
-Cohesion: 0.13
-Nodes (11): Report, _is_process_live(), _load_run_state(), 模拟运行器          负责：     1. 在后台进程中运行OASIS模拟     2. 解析运行日志，记录每个Agent的动作     3. 提供实时, RunnerStatus, SimulationRunner, SimulationRunState, RuntimeCycleHardeningTest (+3 more)
-
 ### Community 19 - "Community 19"
-Cohesion: 0.11
-Nodes (11): 配置管理 统一从项目根目录的 .env 文件加载配置, MiroFish Backend - Flask应用工厂, OASIS Agent Profile生成器 将Zep图谱中的实体转换为OASIS模拟平台所需的Agent Profile格式  优化改进： 1. 调用Zep检, Zep实体读取与过滤服务 从Zep图谱中读取节点，筛选出符合预定义实体类型的节点, _ensure_utf8_stdout(), get_logger(), 日志配置模块 提供统一的日志管理，同时输出到控制台和文件, 确保 stdout/stderr 使用 UTF-8 编码     解决 Windows 控制台中文乱码问题 (+3 more)
+Cohesion: 0.13
+Nodes (12): 配置管理 统一从项目根目录的 .env 文件加载配置, 图谱构建服务 接口2：使用Zep API构建Standalone Graph, OasisAgentProfile, OASIS Agent Profile生成器 将Zep图谱中的实体转换为OASIS模拟平台所需的Agent Profile格式  优化改进： 1. 调用Zep检, OASIS Agent Profile数据结构, PlatformType, OASIS模拟管理器 管理Twitter和Reddit双平台并行模拟 使用预设脚本 + LLM智能生成配置参数, _select_entities_for_personas() (+4 more)
 
 ### Community 20 - "Community 20"
-Cohesion: 0.17
-Nodes (12): _append_jsonl(), _graph_dir(), GraphitiProjectionGraphBuilder, _load_graph(), _now(), ZEP-compatible enough graph builder using local JSON/JSONL storage., _read_json(), _save_graph() (+4 more)
+Cohesion: 0.14
+Nodes (16): create_app(), main(), MiroFish Backend 启动入口, CapturingLLM, test_body_locale_overrides_header_for_background_capture(), test_locale_defaults_to_korean_without_header(), test_locale_parses_accept_language_primary_tag(), test_report_agent_chat_system_prompt_for_ko_forces_korean_output() (+8 more)
 
 ### Community 21 - "Community 21"
 Cohesion: 0.09
@@ -284,116 +287,116 @@ Cohesion: 0.09
 Nodes (19): buildProgress, currentPhase, currentProjectId, currentStep, graphData, graphLoading, leftPanelStyle, loading (+11 more)
 
 ### Community 23 - "Community 23"
-Cohesion: 0.16
-Nodes (17): create_app(), main(), MiroFish Backend 启动入口, CapturingLLM, test_body_locale_overrides_header_for_background_capture(), test_locale_defaults_to_korean_without_header(), test_locale_parses_accept_language_primary_tag(), test_report_agent_chat_system_prompt_for_ko_forces_korean_output() (+9 more)
+Cohesion: 0.14
+Nodes (9): create_simulation(), download_simulation_config(), get_simulation_profiles(), 获取模拟的Agent Profile          Query参数：         platform: 平台类型（reddit/twitter，默认red, 创建新的模拟          注意：max_rounds等参数由LLM智能生成，无需手动设置          请求（JSON）：         {, 模拟管理器          核心功能：     1. 从Zep图谱读取实体并过滤     2. 生成OASIS Agent Profile     3. 使用, 创建新的模拟                  Args:             project_id: 项目ID             graph_id:, 准备模拟环境（全程自动化）                  步骤：         1. 从Zep图谱读取并过滤实体         2. 为每个实体生成OA (+1 more)
 
 ### Community 24 - "Community 24"
-Cohesion: 0.14
-Nodes (14): GraphitiProjectionGraphBuilder, GraphitiProjectionGraphMemoryUpdater, _base_url(), create_updater(), _extract_graphiti_warnings(), GraphitiGraphBuilder, GraphitiGraphMemoryUpdater, _ingest_state() (+6 more)
+Cohesion: 0.11
+Nodes (9): _humanize_cluster_label(), Answer a multiverse report question using aggregate context.          LLM mode i, Product-shaped comparison between the old single-run path and multiverse output., Summarize child simulation states into ensemble-frequency evidence., Lightweight semantic clustering over child outcome text.          This is intent, Optionally ask the configured LLM to cluster outcomes; fall back safely., Use the first completed multiverse child as the single-run baseline.          Th, Shape a comparable baseline answer for one completed simulation. (+1 more)
 
 ### Community 25 - "Community 25"
 Cohesion: 0.1
-Nodes (21): chatMultiverseReportAgent(), compareMultiverseWithSingle(), getMultiverseStatus(), startMultiverse(), agentAnswer, agentQuestion, aggregate, askQuestion() (+13 more)
+Nodes (20): ✅ 현재 상태, 🚀 로컬 실행, 🧪 검증 명령, 🧑‍💻 에이전트 문서 운영 원칙, 📄 원본과 라이선스, 🖼️ 현재 한국어 화면, 🧭 제품 흐름, 🐟 BettaFish 보고서 → MiroFish 단일 시뮬레이션 (+12 more)
 
 ### Community 26 - "Community 26"
-Cohesion: 0.11
-Nodes (7): get_multiverse_prepare_status(), Return TaskManager status for async multiverse preparation., 更新任务状态                  Args:             task_id: 任务ID             status: 新状态, 任务管理器     线程安全的任务状态管理, TaskManager, main(), MultiverseAdvancedOrchestrationTest
-
-### Community 27 - "Community 27"
 Cohesion: 0.1
 Nodes (20): 현재 기준 경로, Architecture — MiroFish-localized, BettaFish bridge runner, code:text (Backend API), code:text (project_id, graph_task_id, graph_id, simulation_id,), code:text (MultiverseManager), code:bash (python scripts/multiverse-long-run-eval.py --mode bounded --), code:text (Graphiti /messages accepted + duplicate edge warning) (+12 more)
 
+### Community 27 - "Community 27"
+Cohesion: 0.19
+Nodes (6): 模拟配置智能生成器          使用LLM分析模拟需求、文档内容、图谱实体信息，     自动生成最佳的模拟参数配置          采用分步生成策略：, 智能生成完整的模拟配置（分步生成）                  Args:             simulation_id: 模拟ID, 为初始帖子分配合适的发布者 Agent                  根据每个帖子的 poster_type 匹配最合适的 agent_id, 基于规则生成单个Agent配置（中国人作息）, SimulationConfigGenerator, get_language_instruction()
+
 ### Community 28 - "Community 28"
-Cohesion: 0.17
-Nodes (6): 模拟配置智能生成器          使用LLM分析模拟需求、文档内容、图谱实体信息，     自动生成最佳的模拟参数配置          采用分步生成策略：, 智能生成完整的模拟配置（分步生成）                  Args:             simulation_id: 模拟ID, 解析时间配置结果，并验证agents_per_hour值不超过总agent数, 为初始帖子分配合适的发布者 Agent                  根据每个帖子的 poster_type 匹配最合适的 agent_id, 基于规则生成单个Agent配置（中国人作息）, SimulationConfigGenerator
+Cohesion: 0.14
+Nodes (11): AgentActivityConfig, EventConfig, PlatformConfig, 模拟配置智能生成器 使用LLM根据模拟需求、文档内容、图谱信息自动生成细致的模拟参数 实现全程自动化，无需人工设置参数  采用分步生成策略，避免一次性生成过长内, 解析时间配置结果，并验证agents_per_hour值不超过总agent数, SimulationParameters, TimeSimulationConfig, EntityNode (+3 more)
 
 ### Community 29 - "Community 29"
-Cohesion: 0.16
-Nodes (11): GraphitiProjectionEntityReader, GraphitiProjectionGraphMemoryManager, GraphitiProjectionToolsService, GraphitiProjectionEntityReader, GraphitiProjectionGraphMemoryManager, GraphitiEntityReader, GraphitiGraphMemoryManager, GraphitiToolsService (+3 more)
+Cohesion: 0.15
+Nodes (18): CommandType, create_model(), fetch_new_actions_from_db(), get_active_agents_for_round(), get_agent_names_from_config(), PlatformSimulation, OASIS 双平台并行模拟预设脚本 同时运行Twitter和Reddit模拟，读取相同的配置文件  功能特性: - 双平台（Twitter + Reddit）并, 运行Twitter模拟          Args:         config: 模拟配置         simulation_dir: 模拟目录 (+10 more)
 
 ### Community 30 - "Community 30"
-Cohesion: 0.12
-Nodes (14): IPCCommand, 初始化IPC客户端                  Args:             simulation_dir: 模拟数据目录, 发送命令并等待响应                  Args:             command_type: 命令类型             args, 发送单个Agent采访命令                  Args:             agent_id: Agent ID, 发送批量采访命令                  Args:             interviews: 采访列表，每个元素包含 {"agent_id":, 发送关闭环境命令                  Args:             timeout: 超时时间                      R, 检查模拟环境是否存活                  通过检查 env_status.json 文件来判断, 模拟IPC客户端（Flask端使用）          用于向模拟进程发送命令并等待响应 (+6 more)
-
-### Community 31 - "Community 31"
-Cohesion: 0.1
-Nodes (20): ✅ 현재 상태, 🚀 로컬 실행, 🧪 검증 명령, 🧑‍💻 에이전트 문서 운영 원칙, 📄 원본과 라이선스, 🖼️ 현재 한국어 화면, 🧭 제품 흐름, 🐟 BettaFish 보고서 → MiroFish 단일 시뮬레이션 (+12 more)
-
-### Community 32 - "Community 32"
 Cohesion: 0.21
 Nodes (18): create_project(), delete_project(), _ensure_projects_dir(), from_dict(), get_extracted_text(), get_project(), _get_project_dir(), get_project_files() (+10 more)
 
-### Community 33 - "Community 33"
-Cohesion: 0.18
-Nodes (9): load_config(), main(), ParallelIPCHandler, 双平台IPC命令处理器          管理两个平台的环境，处理Interview命令, 获取指定平台的环境和agent_graph                  Args:             platform: 平台名称 ("twitte, 在单个平台上执行Interview                  Returns:             包含结果的字典，或包含error的字典, 处理单个Agent采访命令                  Args:             command_id: 命令ID             ag, 处理批量采访命令                  Args:             command_id: 命令ID             intervi (+1 more)
-
-### Community 34 - "Community 34"
-Cohesion: 0.13
-Nodes (18): CommandType, disable_oasis_logging(), _enrich_action_context(), _get_comment_info(), _get_post_info(), _get_user_name(), init_logging_for_simulation(), OASIS 双平台并行模拟预设脚本 同时运行Twitter和Reddit模拟，读取相同的配置文件  功能特性: - 双平台（Twitter + Reddit）并 (+10 more)
-
-### Community 35 - "Community 35"
+### Community 31 - "Community 31"
 Cohesion: 0.12
-Nodes (10): router, routes, app, ext, if(), loadGraph(), refreshGraph(), if() (+2 more)
+Nodes (7): 更新任务状态                  Args:             task_id: 任务ID             status: 新状态, 任务管理器     线程安全的任务状态管理, 创建新任务                  Args:             task_type: 任务类型             metadata: 额, Task, TaskManager, main(), Queue multiverse preparation through TaskManager.          The synchronous prepa
 
-### Community 36 - "Community 36"
-Cohesion: 0.22
-Nodes (4): GraphitiProjectionToolsService, _node_type(), ReportAgent-compatible tools backed by local graph JSON., _storage_root()
+### Community 32 - "Community 32"
+Cohesion: 0.16
+Nodes (6): Merge the base topic with a universe scenario/persona overlay., Append compact universe metadata to source context for child preparation., Prepare child simulations sequentially with universe overlays.          This is, Start up to max_parallel ready child simulations; leave the rest queued., Scheduler tick: fill newly opened run slots from ready/queued children., Refresh child statuses from simulation/run state without starting queued runs.
 
-### Community 37 - "Community 37"
-Cohesion: 0.11
-Nodes (4): ProjectManager, 项目管理器 - 负责项目的持久化存储和检索, MultiverseManagerTest, RouteSmokeTest
-
-### Community 38 - "Community 38"
+### Community 33 - "Community 33"
 Cohesion: 0.25
 Nodes (17): _bridge_script_path(), build_bridge_command(), build_mirofish_result(), _entity_rows(), load_aquarium_manifest(), _load_summary_from_state(), main(), _persona_rows() (+9 more)
 
-### Community 39 - "Community 39"
-Cohesion: 0.12
-Nodes (11): bbox, g, link, linkGroup, linkLabelBg, linkLabels, mid, node (+3 more)
-
-### Community 40 - "Community 40"
+### Community 34 - "Community 34"
 Cohesion: 0.17
 Nodes (9): 获取图谱的所有节点（分页获取）          Args:             graph_id: 图谱ID          Returns:, 获取图谱的所有边（分页获取）          Args:             graph_id: 图谱ID          Returns:, 获取指定节点的所有相关边（带重试机制）                  Args:             node_uuid: 节点UUID, 筛选出符合预定义实体类型的节点                  筛选逻辑：         - 如果节点的Labels只有一个"Entity"，说明这个实体不, 获取单个实体及其完整上下文（边和关联节点，带重试机制）                  Args:             graph_id: 图谱ID, 获取指定类型的所有实体                  Args:             graph_id: 图谱ID             entity, Zep实体读取与过滤服务          主要功能：     1. 从Zep图谱读取所有节点     2. 筛选出符合预定义实体类型的节点（Labels不只是, 带重试机制的Zep API调用                  Args:             func: 要执行的函数（无参数的lambda或calla (+1 more)
 
+### Community 35 - "Community 35"
+Cohesion: 0.25
+Nodes (4): GraphitiProjectionToolsService, _node_type(), _normalize_query(), ReportAgent-compatible tools backed by local graph JSON.
+
+### Community 37 - "Community 37"
+Cohesion: 0.12
+Nodes (16): chatMultiverseReportAgent(), compareMultiverseWithSingle(), agentAnswer, agentQuestion, aggregate, askQuestion(), baselineSource, busy (+8 more)
+
+### Community 38 - "Community 38"
+Cohesion: 0.12
+Nodes (11): bbox, g, link, linkGroup, linkLabelBg, linkLabels, mid, node (+3 more)
+
+### Community 39 - "Community 39"
+Cohesion: 0.2
+Nodes (7): delete_graph(), get_graph_data(), get_graph_statistics_tool(), 图谱统计工具接口（供调试使用）          请求（JSON）：         {             "graph_id": "mirofish_x, get_graph_builder(), get_graph_tools(), GraphitiProviderTest
+
+### Community 40 - "Community 40"
+Cohesion: 0.19
+Nodes (5): _clamp_int(), MultiverseManager, Creates, persists, and summarizes multiverse experiments., Create a parent experiment and N child simulation shells., MultiverseAdvancedOrchestrationTest
+
 ### Community 41 - "Community 41"
-Cohesion: 0.16
-Nodes (7): IPCResponse, 模拟IPC服务器（模拟脚本端使用）          轮询命令目录，执行命令并返回响应, 初始化IPC服务器                  Args:             simulation_dir: 模拟数据目录, 轮询命令目录，返回第一个待处理的命令                  Returns:             IPCCommand 或 None, 发送响应                  Args:             response: IPC响应, SimulationIPCServer, RoundSummary
+Cohesion: 0.21
+Nodes (7): ParallelIPCHandler, 双平台IPC命令处理器          管理两个平台的环境，处理Interview命令, 获取指定平台的环境和agent_graph                  Args:             platform: 平台名称 ("twitte, 在单个平台上执行Interview                  Returns:             包含结果的字典，或包含error的字典, 处理单个Agent采访命令                  Args:             command_id: 命令ID             ag, 处理批量采访命令                  Args:             command_id: 命令ID             intervi, 处理所有待处理命令                  Returns:             True 表示继续运行，False 表示应该退出
 
-### Community 43 - "Community 43"
-Cohesion: 0.23
-Nodes (10): Config, AgentActivityConfig, EventConfig, PlatformConfig, 模拟配置智能生成器 使用LLM根据模拟需求、文档内容、图谱信息自动生成细致的模拟参数 实现全程自动化，无需人工设置参数  采用分步生成策略，避免一次性生成过长内, SimulationParameters, TimeSimulationConfig, SimulationState (+2 more)
-
-### Community 44 - "Community 44"
-Cohesion: 0.17
-Nodes (9): create_updater(), get_all_stats(), GraphitiProjectionGraphMemoryUpdater, _node_by_type(), _node_matches_type(), _normalize_query(), Graphiti Projection graph memory provider.  This provider is intentionally small, stop_all() (+1 more)
-
-### Community 45 - "Community 45"
+### Community 42 - "Community 42"
 Cohesion: 0.14
 Nodes (9): getRunStatus(), getRunStatusDetail(), checkPlatformsCompleted(), fetchRunStatus(), fetchRunStatusDetail(), logContent, prevRedditRound, prevTwitterRound (+1 more)
 
+### Community 43 - "Community 43"
+Cohesion: 0.16
+Nodes (9): router, routes, ext, if(), loadGraph(), refreshGraph(), if(), if() (+1 more)
+
+### Community 44 - "Community 44"
+Cohesion: 0.15
+Nodes (8): MiroFish Backend - Flask应用工厂, _ensure_utf8_stdout(), get_logger(), 日志配置模块 提供统一的日志管理，同时输出到控制台和文件, 确保 stdout/stderr 使用 UTF-8 编码     解决 Windows 控制台中文乱码问题, 设置日志器          Args:         name: 日志器名称         level: 日志级别              Return, 获取日志器（如果不存在则创建）          Args:         name: 日志器名称              Returns:, setup_logger()
+
+### Community 45 - "Community 45"
+Cohesion: 0.17
+Nodes (11): 任务状态管理 用于跟踪长时间运行的任务（如图谱构建）, TaskStatus, _first_sentence(), from_dict(), MultiverseExperiment, MultiverseStatus, Multiverse/ensemble simulation orchestration.  A multiverse experiment is a ligh, Experiment lifecycle status. (+3 more)
+
 ### Community 46 - "Community 46"
-Cohesion: 0.14
-Nodes (4): PlatformActionLogger, 初始化日志记录器                  Args:             platform: 平台名称 (twitter/reddit), MaxTokensWarningFilter, 过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）
+Cohesion: 0.2
+Nodes (13): if(), addLog(), error, handleGoBack(), handleNextStep(), initProject(), loadProject(), pollTaskStatus() (+5 more)
 
 ### Community 47 - "Community 47"
-Cohesion: 0.21
-Nodes (13): if(), addLog(), error, handleGoBack(), handleNextStep(), loadProject(), pollTaskStatus(), startBuildGraph() (+5 more)
-
-### Community 48 - "Community 48"
-Cohesion: 0.16
-Nodes (9): requestWithRetry(), chatWithReport(), generateReport(), createMultiverse(), createSimulation(), interviewAgents(), prepareSimulation(), startSimulation() (+1 more)
-
-### Community 49 - "Community 49"
 Cohesion: 0.2
 Nodes (11): allowed_file(), build_graph(), delete_project(), generate_ontology(), get_project(), get_task(), list_tasks(), 图谱相关API路由 采用项目上下文机制，服务端持久化状态 (+3 more)
 
+### Community 48 - "Community 48"
+Cohesion: 0.16
+Nodes (5): ActionLogger, get_logger(), 动作日志记录器 用于记录OASIS模拟中每个Agent的动作，供后端监控使用  日志结构:     sim_xxx/     ├── twitter/, 动作日志记录器（兼容旧接口）     建议使用 SimulationLogManager 代替, 初始化日志记录器                  Args:             platform: 平台名称 (twitter/reddit)
+
+### Community 49 - "Community 49"
+Cohesion: 0.16
+Nodes (9): requestWithRetry(), chatWithReport(), generateReport(), createMultiverse(), createSimulation(), interviewAgents(), prepareSimulation(), startSimulation() (+1 more)
+
 ### Community 50 - "Community 50"
-Cohesion: 0.24
-Nodes (5): delete_graph(), get_graph_data(), get_graph_builder(), get_graph_tools(), GraphitiProviderTest
+Cohesion: 0.2
+Nodes (6): 初始化模拟运行器                  Args:             config_path: 配置文件路径 (simulation_conf, 获取Profile文件路径（OASIS Twitter使用CSV格式）, 创建LLM模型                  统一使用项目根目录 .env 文件中的配置（优先级最高）：         - LLM_API_KEY: AP, 根据时间和配置决定本轮激活哪些Agent                  Args:             env: OASIS环境, 运行Twitter模拟                  Args:             max_rounds: 最大模拟轮数（可选，用于截断过长的模拟）, TwitterSimulationRunner
 
 ### Community 51 - "Community 51"
-Cohesion: 0.21
-Nodes (7): main(), 初始化模拟运行器                  Args:             config_path: 配置文件路径 (simulation_conf, 获取Profile文件路径（OASIS Twitter使用CSV格式）, 创建LLM模型                  统一使用项目根目录 .env 文件中的配置（优先级最高）：         - LLM_API_KEY: AP, 根据时间和配置决定本轮激活哪些Agent                  Args:             env: OASIS环境, 运行Twitter模拟                  Args:             max_rounds: 最大模拟轮数（可选，用于截断过长的模拟）, TwitterSimulationRunner
+Cohesion: 0.16
+Nodes (11): CommandType, main(), MaxTokensWarningFilter, OASIS Twitter模拟预设脚本 此脚本读取配置文件中的参数来执行模拟，实现全程自动化  功能特性: - 完成模拟后不立即关闭环境，进入等待命令模式 -, 自定义格式化器，将 Unicode 转义序列转换为可读字符, 过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）, 设置信号处理器，确保收到 SIGTERM/SIGINT 时能够正确退出     让程序有机会正常清理资源（关闭数据库、环境等）, 配置 OASIS 的日志，使用固定名称的日志文件 (+3 more)
 
 ### Community 52 - "Community 52"
 Cohesion: 0.23
@@ -404,170 +407,174 @@ Cohesion: 0.14
 Nodes (12): api, apiPath, assets, bundleText, distDir, distIndex, requiredApi, requiredSource (+4 more)
 
 ### Community 54 - "Community 54"
-Cohesion: 0.21
-Nodes (12): create_model(), fetch_new_actions_from_db(), get_active_agents_for_round(), get_agent_names_from_config(), PlatformSimulation, 运行Twitter模拟          Args:         config: 模拟配置         simulation_dir: 模拟目录, 运行Reddit模拟          Args:         config: 模拟配置         simulation_dir: 模拟目录, 从 simulation_config 中获取 agent_id -> entity_name 的映射          这样可以在 actions.jsonl (+4 more)
-
-### Community 55 - "Community 55"
-Cohesion: 0.19
-Nodes (7): OntologyGenerator, 本体生成服务 接口1：分析文本内容，生成适合社会模拟的实体和关系类型定义, 将任意格式的名称转换为 PascalCase（如 'works_for' -> 'WorksFor', 'person' -> 'Person'）, 本体生成器     分析文本内容，生成实体和关系类型定义, 生成本体定义                  Args:             document_texts: 文档文本列表             sim, 将本体定义转换为Python代码（类似ontology.py）                  Args:             ontology: 本体定, _to_pascal_case()
-
-### Community 56 - "Community 56"
 Cohesion: 0.18
 Nodes (13): _check_simulation_prepared(), close_simulation_env(), get_prepare_status(), get_simulation(), prepare_simulation(), 开始运行模拟      请求（JSON）：         {             "simulation_id": "sim_xxxx",, 停止模拟          请求（JSON）：         {             "simulation_id": "sim_xxxx"  // 必填, 检查模拟是否已经准备完成          检查条件：     1. state.json 存在且 status 为 "ready"     2. 必要文件存在 (+5 more)
 
-### Community 57 - "Community 57"
+### Community 56 - "Community 56"
 Cohesion: 0.15
 Nodes (12): 현재 화면 기준, 원본 이미지 취급, 문서 스크린샷 갱신 기준, 한국어 품질 기준, 문서 디자인 기준, code:text (분류 구조(Ontology)), code:text (static/image/Screenshot/localized-home-ko.png), code:text (static/image/Screenshot/运行截图*.png) (+4 more)
 
-### Community 58 - "Community 58"
-Cohesion: 0.17
-Nodes (10): CommandType, MaxTokensWarningFilter, OASIS Twitter模拟预设脚本 此脚本读取配置文件中的参数来执行模拟，实现全程自动化  功能特性: - 完成模拟后不立即关闭环境，进入等待命令模式 -, 自定义格式化器，将 Unicode 转义序列转换为可读字符, 过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）, 设置信号处理器，确保收到 SIGTERM/SIGINT 时能够正确退出     让程序有机会正常清理资源（关闭数据库、环境等）, 配置 OASIS 的日志，使用固定名称的日志文件, setup_oasis_logging() (+2 more)
-
-### Community 59 - "Community 59"
+### Community 57 - "Community 57"
 Cohesion: 0.17
 Nodes (10): CommandType, MaxTokensWarningFilter, OASIS Reddit模拟预设脚本 此脚本读取配置文件中的参数来执行模拟，实现全程自动化  功能特性: - 完成模拟后不立即关闭环境，进入等待命令模式 - 支, 自定义格式化器，将 Unicode 转义序列转换为可读字符, 过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）, 设置信号处理器，确保收到 SIGTERM/SIGINT 时能够正确退出     让程序有机会正常清理资源（关闭数据库、环境等）, 配置 OASIS 的日志，使用固定名称的日志文件, setup_oasis_logging() (+2 more)
 
-### Community 60 - "Community 60"
-Cohesion: 0.2
-Nodes (4): ActionLogger, get_logger(), 动作日志记录器 用于记录OASIS模拟中每个Agent的动作，供后端监控使用  日志结构:     sim_xxx/     ├── twitter/, 动作日志记录器（兼容旧接口）     建议使用 SimulationLogManager 代替
-
-### Community 61 - "Community 61"
+### Community 58 - "Community 58"
 Cohesion: 0.26
 Nodes (11): generate_profiles(), get_entities_by_type(), get_entity_detail(), get_graph_entities(), 直接从图谱生成OASIS Agent Profile（不创建模拟）          请求（JSON）：         {             "grap, 获取图谱中的所有实体（已过滤）          只返回符合预定义实体类型的节点（Labels不只是Entity的节点）          Query参数：, get_entity_reader(), is_graphiti_provider() (+3 more)
 
-### Community 62 - "Community 62"
+### Community 59 - "Community 59"
+Cohesion: 0.17
+Nodes (3): PlatformActionLogger, MaxTokensWarningFilter, 过滤掉 camel-ai 关于 max_tokens 的警告（我们故意不设置 max_tokens，让模型自行决定）
+
+### Community 60 - "Community 60"
 Cohesion: 0.26
 Nodes (5): main(), 初始化模拟运行器                  Args:             config_path: 配置文件路径 (simulation_conf, 创建LLM模型                  统一使用项目根目录 .env 文件中的配置（优先级最高）：         - LLM_API_KEY: AP, 运行Reddit模拟                  Args:             max_rounds: 最大模拟轮数（可选，用于截断过长的模拟）, RedditSimulationRunner
 
-### Community 63 - "Community 63"
+### Community 61 - "Community 61"
 Cohesion: 0.29
 Nodes (4): IPCHandler, 处理单个Agent采访命令                  Returns:             True 表示成功，False 表示失败, 处理批量采访命令                  Args:             interviews: [{"agent_id": int, "prom, 处理所有待处理命令                  Returns:             True 表示继续运行，False 表示应该退出
 
-### Community 64 - "Community 64"
-Cohesion: 0.29
-Nodes (4): IPCHandler, 处理单个Agent采访命令                  Returns:             True 表示成功，False 表示失败, 处理批量采访命令                  Args:             interviews: [{"agent_id": int, "prom, 处理所有待处理命令                  Returns:             True 表示继续运行，False 表示应该退出
-
-### Community 65 - "Community 65"
-Cohesion: 0.17
-Nodes (10): date, envReady, ext, graphReady, hours, minutes, prefix, reportReady (+2 more)
-
-### Community 66 - "Community 66"
+### Community 62 - "Community 62"
 Cohesion: 0.21
 Nodes (6): add_messages(), _ensure_repair_node(), _extract_terms(), Synchronous Graphiti ingest router for mirofish-localized.  The upstream graph-s, Create a native Graphiti edge when strict LLM extraction fails.      This is int, _repair_fact_edge()
 
-### Community 67 - "Community 67"
+### Community 63 - "Community 63"
+Cohesion: 0.17
+Nodes (10): date, envReady, ext, graphReady, hours, minutes, prefix, reportReady (+2 more)
+
+### Community 64 - "Community 64"
 Cohesion: 0.2
 Nodes (6): API调用重试机制 用于处理LLM等外部API调用的重试逻辑, 执行函数调用并在失败时重试                  Args:             func: 要调用的函数             *args:, 批量调用并对每个失败项单独重试                  Args:             items: 要处理的项目列表             p, 带指数退避的重试装饰器          Args:         max_retries: 最大重试次数         initial_delay: 初始, retry_with_backoff(), RetryableAPIClient
 
-### Community 68 - "Community 68"
+### Community 65 - "Community 65"
+Cohesion: 0.33
+Nodes (4): IPCHandler, 处理单个Agent采访命令                  Returns:             True 表示成功，False 表示失败, 处理批量采访命令                  Args:             interviews: [{"agent_id": int, "prom, 处理所有待处理命令                  Returns:             True 表示继续运行，False 表示应该退出
+
+### Community 66 - "Community 66"
 Cohesion: 0.36
 Nodes (10): api_get(), api_post(), build_graph(), create_cases(), extracted_text(), main(), make_chart_pdf(), make_embedded_image_pdf() (+2 more)
 
-### Community 69 - "Community 69"
+### Community 67 - "Community 67"
+Cohesion: 0.29
+Nodes (8): buildGraph(), generateOntology(), getGraphData(), getProject(), getTaskStatus(), service, fetchGraphData(), startGraphPolling()
+
+### Community 68 - "Community 68"
 Cohesion: 0.31
 Nodes (3): 模拟日志管理器     统一管理所有日志文件，按平台分离, 初始化日志管理器                  Args:             simulation_dir: 模拟目录路径, SimulationLogManager
 
-### Community 70 - "Community 70"
-Cohesion: 0.27
-Nodes (4): Report Agent 控制台日志记录器          将控制台风格的日志（INFO、WARNING等）写入报告文件夹中的 console_log.txt, 初始化控制台日志记录器                  Args:             report_id: 报告ID，用于确定日志文件路径, 初始化日志记录器                  Args:             report_id: 报告ID，用于确定日志文件路径, ReportConsoleLogger
-
-### Community 71 - "Community 71"
+### Community 69 - "Community 69"
 Cohesion: 0.2
 Nodes (9): 목적, 문서 구조, 에이전트별 문서 책임, 문서 업데이트 체크리스트, 스크린샷 정책, code:text (원본 README/스크린샷 보존 ≠ 현재 localized 상태 문서화), code:text (canonical docs:), MiroFish-localized 문서 허브 (+1 more)
 
-### Community 73 - "Community 73"
+### Community 71 - "Community 71"
 Cohesion: 0.47
 Nodes (9): blocked_report(), ensure_clean_or_block(), http_health(), main(), now(), parse_changed_files(), render_report(), run() (+1 more)
+
+### Community 72 - "Community 72"
+Cohesion: 0.38
+Nodes (9): test_aquarium_runner_cli_contract_smoke_with_fake_bridge(), test_aquarium_runner_fails_when_bridge_does_not_export_real_report(), test_aquarium_runner_preserves_graph_memory_warnings(), test_aquarium_runner_rejects_generated_report_outside_run_dir(), test_aquarium_runner_rejects_unseeded_multiverse(), test_aquarium_runner_requires_valid_manifest(), test_aquarium_runner_writes_valid_mirofish_result_from_bridge_summary(), _write_manifest() (+1 more)
+
+### Community 73 - "Community 73"
+Cohesion: 0.2
+Nodes (8): dropdown, interviews, level, matchedResult, message, newSet, responseContent, surveyResultsList
 
 ### Community 74 - "Community 74"
 Cohesion: 0.2
 Nodes (9): 목적, 2026-06-09 수동 제품 QA 기준선, 현재 릴리즈에서 검증할 사용자 가치, 보고 기준, code:text (로컬 앱 동작: PASS/PARTIAL/FAIL), Pages Canary 기준, 로컬 QA 기준, 다국어 제품 QA 기준 (+1 more)
 
 ### Community 75 - "Community 75"
-Cohesion: 0.38
-Nodes (9): test_aquarium_runner_cli_contract_smoke_with_fake_bridge(), test_aquarium_runner_fails_when_bridge_does_not_export_real_report(), test_aquarium_runner_preserves_graph_memory_warnings(), test_aquarium_runner_rejects_generated_report_outside_run_dir(), test_aquarium_runner_rejects_unseeded_multiverse(), test_aquarium_runner_requires_valid_manifest(), test_aquarium_runner_writes_valid_mirofish_result_from_bridge_summary(), _write_manifest() (+1 more)
-
-### Community 76 - "Community 76"
-Cohesion: 0.2
-Nodes (8): dropdown, interviews, level, matchedResult, message, newSet, responseContent, surveyResultsList
+Cohesion: 0.22
+Nodes (5): availableLocales, i18n, localeFiles, messages, app
 
 ### Community 77 - "Community 77"
 Cohesion: 0.22
-Nodes (4): 测试Profile格式生成是否符合OASIS要求 验证： 1. Twitter Profile生成CSV格式 2. Reddit Profile生成JSON详细, test_profile_formats(), OasisAgentProfile, OASIS Agent Profile数据结构
-
-### Community 78 - "Community 78"
-Cohesion: 0.28
-Nodes (6): ExtractedEdges, GraphitiStructuredNormalizationTest, _install_module(), _load_zep_graphiti_module(), NodeResolutions, setUpClass()
+Nodes (3): ProjectManager, 项目管理器 - 负责项目的持久化存储和检索, MultiverseManagerTest
 
 ### Community 79 - "Community 79"
-Cohesion: 0.22
-Nodes (9): advanceMultiverse(), getMultiverse(), getMultiversePrepareStatus(), getMultiverseReport(), prepareMultiverse(), advanceExperiment(), loadExperiment(), loadReport() (+1 more)
+Cohesion: 0.28
+Nodes (4): LLMClientTimeoutTest, LLMClient, 发送聊天请求                  Args:             messages: 消息列表             temperature, 发送聊天请求并返回JSON                  Args:             messages: 消息列表             temp
 
 ### Community 80 - "Community 80"
-Cohesion: 0.44
-Nodes (8): main(), preflight_local_runtime(), _probe_embedding_compatible(), _probe_http(), _probe_openai_compatible(), run_bounded(), topic_summaries(), write_artifacts()
-
-### Community 81 - "Community 81"
 Cohesion: 0.47
 Nodes (8): main(), parse_counts(), request(), run_case(), set_mode(), sh(), verdict(), wait_health()
 
-### Community 82 - "Community 82"
-Cohesion: 0.29
-Nodes (6): generateOntology(), clearPendingUpload(), getPendingUpload(), state, handleNewProject(), initProject()
+### Community 81 - "Community 81"
+Cohesion: 0.28
+Nodes (6): ExtractedEdges, GraphitiStructuredNormalizationTest, _install_module(), _load_zep_graphiti_module(), NodeResolutions, setUpClass()
 
-### Community 84 - "Community 84"
+### Community 82 - "Community 82"
+Cohesion: 0.44
+Nodes (8): main(), preflight_local_runtime(), _probe_embedding_compatible(), _probe_http(), _probe_openai_compatible(), run_bounded(), topic_summaries(), write_artifacts()
+
+### Community 83 - "Community 83"
 Cohesion: 0.25
 Nodes (8): _get_report_id_for_simulation(), get_simulation_config(), get_simulation_history(), list_simulations(), 获取模拟配置（LLM智能生成的完整配置）          返回包含：         - time_config: 时间配置（模拟时长、轮次、高峰/低谷时段）, 列出所有模拟          Query参数：         project_id: 按项目ID过滤（可选）, 获取 simulation 对应的最新 report_id          遍历 reports 目录，找出 simulation_id 匹配的 report, 获取历史模拟列表（带项目详情）          用于首页历史项目展示，返回包含项目名称、描述等丰富信息的模拟列表          Query参数：
 
+### Community 84 - "Community 84"
+Cohesion: 0.25
+Nodes (8): interview_agent(), interview_agents_batch(), interview_all_agents(), optimize_interview_prompt(), 采访单个Agent      注意：此功能需要模拟环境处于运行状态（完成模拟循环后进入等待命令模式）      请求（JSON）：         {, 批量采访多个Agent      注意：此功能需要模拟环境处于运行状态      请求（JSON）：         {             "simula, 全局采访 - 使用相同问题采访所有Agent      注意：此功能需要模拟环境处于运行状态      请求（JSON）：         {, 优化Interview提问，添加前缀避免Agent调用工具          Args:         prompt: 原始提问              R
+
 ### Community 85 - "Community 85"
+Cohesion: 0.25
+Nodes (8): _enrich_action_context(), _get_comment_info(), _get_post_info(), _get_user_name(), 为动作补充上下文信息（帖子内容、用户名等）          Args:         cursor: 数据库游标         action_type:, 获取帖子信息          Args:         cursor: 数据库游标         post_id: 帖子ID         agent_, 获取用户名称          Args:         cursor: 数据库游标         user_id: 用户ID         agent_, 获取评论信息          Args:         cursor: 数据库游标         comment_id: 评论ID         age
+
+### Community 86 - "Community 86"
+Cohesion: 0.25
+Nodes (8): advanceMultiverse(), getMultiverseReport(), getMultiverseStatus(), startMultiverse(), advanceExperiment(), loadReport(), refreshStatus(), startExperiment()
+
+### Community 87 - "Community 87"
 Cohesion: 0.25
 Nodes (7): 한 줄 정의, 현재 아닌 것, 사용자가 얻는 가치, 다음 후보, 현재 제품 범위, 완료된 사용자 흐름, Product — MiroFish-localized
 
-### Community 86 - "Community 86"
-Cohesion: 0.43
-Nodes (6): buildGraph(), getGraphData(), getProject(), getTaskStatus(), service, fetchGraphData()
+### Community 90 - "Community 90"
+Cohesion: 0.29
+Nodes (6): disable_oasis_logging(), init_logging_for_simulation(), load_config(), main(), 禁用 OASIS 库的详细日志输出     OASIS 的日志太冗余（记录每个 agent 的观察和动作），我们使用自己的 action_logger, 初始化模拟的日志配置          Args:         simulation_dir: 模拟目录路径
 
-### Community 87 - "Community 87"
+### Community 91 - "Community 91"
 Cohesion: 0.71
 Nodes (6): main(), read_actions(), read_projection_memory(), request(), wait_actions(), wait_prepare()
 
-### Community 88 - "Community 88"
+### Community 92 - "Community 92"
 Cohesion: 0.29
 Nodes (6): 릴리즈 의도, 브랜치 정책, 배포 대상, 필수 릴리즈 게이트, 롤백 기준, Release 기준 — MiroFish-localized
 
-### Community 89 - "Community 89"
+### Community 93 - "Community 93"
 Cohesion: 0.33
 Nodes (5): checkHealth(), { chromium }, root, run(), scenarios
 
-### Community 91 - "Community 91"
-Cohesion: 0.33
-Nodes (4): availableLocales, i18n, localeFiles, messages
+### Community 94 - "Community 94"
+Cohesion: 0.4
+Nodes (4): clearPendingUpload(), getPendingUpload(), state, handleNewProject()
 
-### Community 92 - "Community 92"
+### Community 95 - "Community 95"
 Cohesion: 0.33
-Nodes (6): download_report(), get_report(), get_report_sections(), 获取报告详情          返回：         {             "success": true,             "data": {, 下载报告（Markdown格式）          返回Markdown文件, 获取已生成的章节列表（分章节输出）          前端可以轮询此接口获取已生成的章节内容，无需等待整个报告完成          返回：         {
+Nodes (6): get_run_status(), get_run_status_detail(), _normalize_terminal_run_state(), Expose a clear terminal state for bounded local demo runs.      Some local simul, 获取模拟运行实时状态（用于前端轮询）          返回：         {             "success": true,, 获取模拟运行详细状态（包含所有动作）          用于前端展示实时动态          Query参数：         platform: 过滤平台（
 
-### Community 93 - "Community 93"
+### Community 96 - "Community 96"
+Cohesion: 0.33
+Nodes (6): getMultiverse(), getMultiversePrepareStatus(), prepareMultiverse(), loadAll(), loadExperiment(), prepareExperiment()
+
+### Community 97 - "Community 97"
 Cohesion: 0.33
 Nodes (5): 2026-06-09, 2026-06-18, 2026-06-19, 2026-06-29, Changelog — MiroFish-localized
 
-### Community 100 - "Community 100"
+### Community 103 - "Community 103"
 Cohesion: 0.83
 Nodes (3): main(), post(), validate()
 
 ## Knowledge Gaps
 - **637 isolated node(s):** `app`, `simulation`, `g`, `linkGroup`, `link` (+632 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **58 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **60 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `RunnerError` connect `Community 12` to `Community 0`?**
+- **Why does `RunnerError` connect `Community 12` to `Community 1`?**
   _High betweenness centrality (0.148) - this node is a cross-community bridge._
-- **Why does `Config` connect `Community 43` to `Community 0`, `Community 1`, `Community 4`, `Community 5`, `Community 7`, `Community 8`, `Community 9`, `Community 11`, `Community 14`, `Community 15`, `Community 18`, `Community 19`, `Community 20`, `Community 24`, `Community 26`, `Community 28`, `Community 29`, `Community 32`, `Community 36`, `Community 37`, `Community 40`, `Community 41`, `Community 44`, `Community 50`, `Community 70`, `Community 72`, `Community 77`, `Community 83`, `Community 90`?**
+- **Why does `Config` connect `Community 5` to `Community 0`, `Community 1`, `Community 3`, `Community 6`, `Community 8`, `Community 9`, `Community 13`, `Community 14`, `Community 15`, `Community 16`, `Community 19`, `Community 23`, `Community 27`, `Community 28`, `Community 30`, `Community 34`, `Community 35`, `Community 39`, `Community 40`, `Community 45`, `Community 55`, `Community 70`, `Community 76`, `Community 77`, `Community 78`, `Community 79`, `Community 88`, `Community 89`?**
   _High betweenness centrality (0.145) - this node is a cross-community bridge._
-- **Why does `ReportAgentProtocolError` connect `Community 0` to `Community 8`, `Community 43`, `Community 29`, `Community 7`?**
+- **Why does `ReportAgentProtocolError` connect `Community 13` to `Community 8`, `Community 1`, `Community 5`, `Community 79`?**
   _High betweenness centrality (0.140) - this node is a cross-community bridge._
 - **Are the 72 inferred relationships involving `Config` (e.g. with `FileParser` and `MultimodalClient`) actually correct?**
   _`Config` has 72 INFERRED edges - model-reasoned connections that need verification._
