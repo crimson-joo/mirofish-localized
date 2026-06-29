@@ -72,6 +72,8 @@ def test_aquarium_runner_writes_valid_mirofish_result_from_bridge_summary(tmp_pa
     manifest = _write_manifest(tmp_path)
     run_dir = tmp_path / "aquarium-run"
     run_dir.mkdir()
+    real_report = run_dir / "real_mirofish_generated_report.md"
+    real_report.write_text("# REAL MIROFISH REPORT\n\n실제 보고서 본문입니다.", encoding="utf-8")
 
     bridge_summary = {
         "success": True,
@@ -93,6 +95,7 @@ def test_aquarium_runner_writes_valid_mirofish_result_from_bridge_summary(tmp_pa
         "report_chars": 20,
         "report_hangul": 8,
         "report_cjk": 0,
+        "generated_report_path": str(real_report),
         "chat_preview": "핵심 테마 요약",
         "sample_action": {"agent_name": "Agent A", "action_type": "POST", "content": "시장 신호를 토론"},
     }
@@ -127,14 +130,83 @@ def test_aquarium_runner_writes_valid_mirofish_result_from_bridge_summary(tmp_pa
     assert written["personas"][0]["name"] == "Agent A"
     assert written["simulation"]["mode"] == "single"
     assert written["simulation"]["universes"][0]["events"] == ["시장 신호를 토론"]
-    assert Path(written["simulation_report"]["path"]).exists()
+    assert Path(written["simulation_report"]["path"]) == real_report
+    assert written["simulation_report"]["body"] == "# REAL MIROFISH REPORT\n\n실제 보고서 본문입니다."
+    assert written["simulation_report"]["body"] != bridge_summary["chat_preview"]
     assert "BettaFish source coverage was partial." in written["warnings"]
+
+
+def test_aquarium_runner_fails_when_bridge_does_not_export_real_report(tmp_path, monkeypatch):
+    manifest = _write_manifest(tmp_path)
+    run_dir = tmp_path / "aquarium-run"
+    run_dir.mkdir()
+    summary = {
+        "success": True,
+        "simulation_id": "sim_1",
+        "report_id": "report_1",
+        "graph_nodes": 1,
+        "actions": 1,
+        "graph_memory_update_enabled": True,
+        "report_chars": 20,
+        "report_cjk": 0,
+        "chat_preview": "채팅 미리보기만 있습니다",
+        "sample_action": {"agent_name": "Agent A", "action_type": "POST", "content": "시장 신호를 토론"},
+    }
+    monkeypatch.setattr(runner, "run_bridge_command", lambda command, cwd=None: summary)
+    env = {
+        "AQUARIUM_TOPIC": "AI 검색엔진 시장 변화",
+        "AQUARIUM_LOCALE": "ko",
+        "AQUARIUM_MODE": "single",
+        "AQUARIUM_RUN_DIR": str(run_dir),
+        "AQUARIUM_HANDOFF_MANIFEST": str(manifest),
+    }
+
+    code = runner.main([], env=env)
+
+    assert code == 2
+    assert not (run_dir / "mirofish_result.json").exists()
+
+
+def test_aquarium_runner_rejects_generated_report_outside_run_dir(tmp_path, monkeypatch):
+    manifest = _write_manifest(tmp_path)
+    run_dir = tmp_path / "aquarium-run"
+    run_dir.mkdir()
+    outside_report = tmp_path / "outside_report.md"
+    outside_report.write_text("# Outside report\n\nshould not be accepted", encoding="utf-8")
+    summary = {
+        "success": True,
+        "simulation_id": "sim_1",
+        "report_id": "report_1",
+        "generated_report_path": str(outside_report),
+        "graph_nodes": 1,
+        "actions": 1,
+        "graph_memory_update_enabled": True,
+        "report_chars": 20,
+        "report_cjk": 0,
+        "chat_preview": "채팅 미리보기",
+        "sample_action": {"agent_name": "Agent A", "action_type": "POST", "content": "시장 신호를 토론"},
+    }
+    monkeypatch.setattr(runner, "run_bridge_command", lambda command, cwd=None: summary)
+    env = {
+        "AQUARIUM_TOPIC": "AI 검색엔진 시장 변화",
+        "AQUARIUM_LOCALE": "ko",
+        "AQUARIUM_MODE": "single",
+        "AQUARIUM_RUN_DIR": str(run_dir),
+        "AQUARIUM_HANDOFF_MANIFEST": str(manifest),
+    }
+
+    code = runner.main([], env=env)
+
+    assert code == 2
+    assert not (run_dir / "mirofish_result.json").exists()
 
 
 def test_aquarium_runner_preserves_graph_memory_warnings(tmp_path, monkeypatch):
     manifest = _write_manifest(tmp_path)
     run_dir = tmp_path / "aquarium-run"
     run_dir.mkdir()
+    real_report = run_dir / "real_mirofish_generated_report.md"
+    real_report.write_text("# REAL MIROFISH REPORT\n\nGraphiti 경고를 보존합니다.", encoding="utf-8")
     summary = {
         "success": True,
         "simulation_id": "sim_1",
@@ -145,6 +217,7 @@ def test_aquarium_runner_preserves_graph_memory_warnings(tmp_path, monkeypatch):
         "graph_memory_update_enabled": False,
         "report_chars": 0,
         "report_cjk": 2,
+        "generated_report_path": str(real_report),
         "chat_preview": "",
         "sample_action": {},
         "warnings": ["native_action_ingest_state=failed"],
@@ -197,6 +270,8 @@ args = sys.argv
 state_path = Path(args[args.index('--state-path') + 1])
 report_path = Path(args[args.index('--bettafish-report') + 1])
 state_path.parent.mkdir(parents=True, exist_ok=True)
+generated_report = state_path.parent / 'real_mirofish_cli_report.md'
+generated_report.write_text('# REAL CLI MIROFISH REPORT\\n\\n이 본문은 chat_preview가 아닙니다.', encoding='utf-8')
 summary = {
     'success': True,
     'source_report': str(report_path),
@@ -212,6 +287,7 @@ summary = {
     'report_chars': 12,
     'report_hangul': 5,
     'report_cjk': 0,
+    'generated_report_path': str(generated_report),
     'chat_preview': 'CLI 요약',
     'sample_action': {'agent_name': 'CLI Agent', 'action_type': 'POST', 'content': 'CLI 이벤트'},
 }
@@ -238,5 +314,6 @@ print(json.dumps({'event': 'final_summary', **summary}, ensure_ascii=False))
     assert completed.returncode == 0, completed.stderr
     output = json.loads((run_dir / "mirofish_result.json").read_text(encoding="utf-8"))
     assert output["provider"] == "mirofish_cli"
-    assert output["simulation_report"]["body"]
+    assert output["simulation_report"]["body"] == "# REAL CLI MIROFISH REPORT\n\n이 본문은 chat_preview가 아닙니다."
+    assert output["simulation_report"]["body"] != "CLI 요약"
     assert output["personas"][0]["role"] == "simulation_participant"

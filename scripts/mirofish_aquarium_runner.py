@@ -197,20 +197,25 @@ def _warnings(manifest: Mapping[str, Any], summary: Mapping[str, Any]) -> list[s
 
 
 def _report_body(run_dir: Path, summary: Mapping[str, Any]) -> tuple[Path, str]:
-    report_path = run_dir / "mirofish_simulation_report.md"
-    body = "\n".join(
-        [
-            "# MiroFish Aquarium Simulation Report",
-            "",
-            f"- simulation_id: {summary.get('simulation_id', 'unknown')}",
-            f"- report_id: {summary.get('report_id', 'unknown')}",
-            f"- actions: {summary.get('actions', 0)}",
-            "",
-            str(summary.get("chat_preview") or "Bridge runner completed; detailed report body was not exported through the summary."),
-            "",
-        ]
-    )
-    report_path.write_text(body, encoding="utf-8")
+    run_dir = run_dir.resolve()
+    report_value = str(summary.get("generated_report_path") or "").strip()
+    if not report_value:
+        raise RunnerContractError("MiroFish bridge did not export generated_report_path for the real report markdown.")
+    report_path = Path(report_value).expanduser()
+    if not report_path.is_absolute():
+        report_path = (run_dir / report_path).resolve()
+    else:
+        report_path = report_path.resolve()
+    try:
+        report_path.relative_to(run_dir)
+    except ValueError as exc:
+        raise RunnerContractError(f"MiroFish generated report is outside run directory: {report_path}") from exc
+    try:
+        body = report_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RunnerContractError(f"MiroFish generated report is not readable: {report_path}") from exc
+    if not body.strip():
+        raise RunnerContractError(f"MiroFish generated report is empty: {report_path}")
     return report_path, body
 
 

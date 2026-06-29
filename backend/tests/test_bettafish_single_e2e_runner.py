@@ -58,3 +58,12 @@ def test_arg_parser_keeps_graph_memory_on_by_default():
     assert args.enable_graph_memory_update is True
     assert args.max_rounds == 1
     assert args.profile_count == 2
+
+
+def test_generated_report_path_sanitizes_report_id(tmp_path):
+    state_path = tmp_path / "state.json"
+
+    path = runner.generated_report_path(state_path, "../evil/report:id")
+
+    assert path.parent == tmp_path
+    assert path.name == "mirofish_generated_report_evil_report_id.md"
