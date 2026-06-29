@@ -74,7 +74,7 @@ class RuntimeCycleHardeningTest(unittest.TestCase):
         self.assertEqual(len(duplicate_warnings), 1)
         self.assertEqual(status["native_ingest_state"], "pass")
 
-    def test_action_log_graph_memory_failure_fails_closed(self):
+    def test_action_log_graph_memory_failure_is_warning_without_projection_success(self):
         from app.services.simulation_runner import RunnerStatus, SimulationRunState, SimulationRunner
 
         class FailingUpdater:
@@ -97,11 +97,14 @@ class RuntimeCycleHardeningTest(unittest.TestCase):
         SimulationRunner._graph_memory_enabled[state.simulation_id] = True
         with patch("app.services.simulation_runner.get_graph_memory_manager") as manager_factory:
             manager_factory.return_value.get_updater.return_value = FailingUpdater()
-            with self.assertRaises(RuntimeError):
-                SimulationRunner._read_action_log(log_path, 0, state, "twitter")
+            new_position = SimulationRunner._read_action_log(log_path, 0, state, "twitter")
 
-        self.assertEqual(state.runner_status, RunnerStatus.FAILED)
-        self.assertIn("Graph memory action ingest failed", state.error)
+        self.assertGreater(new_position, 0)
+        self.assertEqual(state.runner_status, RunnerStatus.RUNNING)
+        self.assertEqual(state.twitter_actions_count, 1)
+        self.assertEqual(len(state.graph_memory_warnings), 1)
+        self.assertEqual(state.graph_memory_warnings[0]["state"], "failed")
+        self.assertIn("Graph memory action ingest warning", state.error or "")
 
     def test_invalid_persisted_runner_status_fails_closed(self):
         from app.services.simulation_runner import RunnerStatus, SimulationRunner

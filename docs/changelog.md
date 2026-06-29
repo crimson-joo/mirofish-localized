@@ -1,5 +1,12 @@
 # Changelog — MiroFish-localized
 
+## 2026-06-29
+
+- BettaFish handoff manifest를 직접 읽는 `--bettafish-manifest` 옵션을 bridge runner에 추가했습니다.
+- `scripts/run_bettafish_handoff_canary.sh`를 추가해 local smoke → BettaFish manifest seed → ontology/graph/simulation/report/chat canary를 한 명령으로 실행할 수 있게 했습니다.
+- Graphiti action-memory timeout이 발생해도 OASIS action 기록과 보고서 생성이 실패로 오염되지 않도록 `graph_memory_warnings[]`를 추가했습니다. Native ingest 실패는 `native_action_ingest_state=failed`로 남고 projection evidence로 PASS 처리하지 않습니다.
+- 관련 regression tests를 `backend/tests/test_simulation_action_memory_hardening.py`, `backend/tests/test_bettafish_handoff_runner.py`에 추가했습니다.
+
 ## 2026-06-19
 
 - 반복 실행 안정화를 위해 Graphiti duplicate edge warning을 native ingest 실패와 분리해 `native_warning_state=warning` 및 `warnings[]`로 기록하도록 했습니다.
