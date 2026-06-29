@@ -134,6 +134,31 @@ def audit_text(label: str, text: str) -> dict[str, int]:
     }
 
 
+def _locale_from_manifest_language(language: str | None) -> str | None:
+    normalized = (language or "").strip().lower()
+    if normalized in {"korean", "ko", "한국어"}:
+        return "ko"
+    if normalized in {"english", "en"}:
+        return "en"
+    if normalized in {"chinese", "zh", "中文", "중국어"}:
+        return "zh"
+    return None
+
+
+def apply_handoff_manifest_defaults(args: argparse.Namespace) -> None:
+    manifest_path = getattr(args, "bettafish_manifest", None)
+    if not manifest_path:
+        return
+    manifest = json.loads(Path(manifest_path).expanduser().read_text(encoding="utf-8"))
+    seed_path = ((manifest.get("seed_document") or {}).get("path") or "").strip()
+    if not getattr(args, "bettafish_report", None) and seed_path:
+        args.bettafish_report = str(Path(seed_path).expanduser())
+    if not getattr(args, "topic", None) and manifest.get("topic"):
+        args.topic = manifest["topic"]
+    if not getattr(args, "locale", None):
+        args.locale = _locale_from_manifest_language(manifest.get("language")) or "ko"
+
+
 def request_json(base_url: str, method: str, path: str, locale: str, payload: dict[str, Any] | None = None, timeout: int = 300) -> dict[str, Any]:
     body_payload = None
     if payload is not None:
@@ -483,11 +508,12 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run/resume BettaFish report → MiroFish single simulation E2E.")
     parser.add_argument("--base-url", default="http://127.0.0.1:5001")
-    parser.add_argument("--bettafish-report", required=True, help="Path to gated BettaFish final Markdown report")
-    parser.add_argument("--topic", required=True)
+    parser.add_argument("--bettafish-manifest", help="Optional BettaFish→MiroFish handoff manifest JSON; supplies report/topic/locale defaults")
+    parser.add_argument("--bettafish-report", help="Path to gated BettaFish final Markdown report")
+    parser.add_argument("--topic")
     parser.add_argument("--state-path", default=".hermes/runs/bettafish-mirofish-single-e2e/state.json")
     parser.add_argument("--log-file", default=".hermes/runs/bettafish-mirofish-single-e2e/events.jsonl")
-    parser.add_argument("--locale", default="ko")
+    parser.add_argument("--locale", default=None)
     parser.add_argument("--project-name")
     parser.add_argument("--graph-name")
     parser.add_argument("--requirement")
@@ -516,6 +542,13 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    apply_handoff_manifest_defaults(args)
+    if not args.locale:
+        args.locale = "ko"
+    if not args.bettafish_report:
+        parser.error("--bettafish-report is required unless --bettafish-manifest supplies seed_document.path")
+    if not args.topic:
+        parser.error("--topic is required unless --bettafish-manifest supplies topic")
     try:
         run(args)
         return 0

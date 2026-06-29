@@ -88,7 +88,8 @@ Graphiti /messages accepted + duplicate edge warning
 Simulation action memory
 → actions.jsonl의 agent action을 Graphiti /messages로 먼저 native ingest
 → 성공한 action만 projection cache/actions.jsonl read-model에 기록
-→ native action ingest 실패는 run failure로 드러내고 리포트 evidence로 쓰지 않음
+→ native action ingest 실패는 `graph_memory_warnings[]`와 graph `native_action_ingest_state=failed`로 드러냄
+→ 단일 Graphiti timeout이 OASIS action 기록/보고서 생성을 실패로 오염시키지는 않음
 → native_action_ingest_state=pass/repaired/failed 로 별도 기록
 ```
 

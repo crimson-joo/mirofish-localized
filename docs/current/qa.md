@@ -17,7 +17,7 @@
 9. README와 current docs는 현재 localized 상태, 한국어 화면, 실제 검증 범위를 반영해야 한다.
 10. 반복 사이클 안정화 기준: Graphiti duplicate edge 경고는 실패와 분리되어 `native_warning_state=warning`으로 기록되어야 하며, OASIS command-wait 후 stop된 run도 durable `actions.jsonl`의 양 플랫폼 `simulation_end`가 있으면 completed로 승격되어야 한다.
 11. 리포트 생성 watcher가 끊겨도 `full_report.md`가 완성되어 있으면 같은 `report_id`를 재실행/조회할 때 completed 상태로 복구되어야 한다.
-12. Action memory canary는 simulation action이 Graphiti `/messages`에 native ingest되고, Graphiti search/Report Agent `quick_search`에서 같은 canary evidence가 회수되는지 확인해야 한다. Native action ingest/search 실패는 projection cache나 문자열 observation으로 PASS 처리하면 안 된다.
+12. Action memory canary는 simulation action이 Graphiti `/messages`에 native ingest되고, Graphiti search/Report Agent `quick_search`에서 같은 canary evidence가 회수되는지 확인해야 한다. Native action ingest 실패는 projection cache나 문자열 observation으로 PASS 처리하면 안 된다. 단, timeout 같은 native ingest 실패는 `graph_memory_warnings[]`/`native_action_ingest_state=failed`로 남기고 simulation action 기록·보고서 생성 자체는 계속 진행할 수 있어야 한다.
 13. Report Agent는 한 응답에 tool call과 `Final Answer`를 동시에 내는 protocol conflict를 도구 실행 없이 재시도/실패 처리해야 한다.
 14. Long-run scheduler는 같은 multiverse prepare task를 중복 등록하지 않고, orphan running/failed child를 무한 재시도하지 않아야 한다.
 
